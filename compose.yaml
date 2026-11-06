@@ -1,0 +1,21 @@
+services:
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /app/data
+      MAX_UPLOAD_MB: 1024
+      MAX_EXPANDED_MB: 3072
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:5173:5173"

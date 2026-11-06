@@ -1,0 +1,22 @@
+# Nunca subir datos de pacientes a GitHub.
+data/
+**/data/
+*.dcm
+*.ima
+*.nii
+*.nii.gz
+*.nrrd
+*.raw
+*.npy
+*.zip
+*.pdf
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.DS_Store
