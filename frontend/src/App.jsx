@@ -50,7 +50,7 @@ export default function App(){
    const data=new FormData();for(const file of files)data.append('files',file);
    if(report)data.append('report',report);
    const study=await api('/api/studies',{method:'POST',body:data});
-   await refresh();setSelected(study);setFiles([]);setReport([]);
+   await refresh();setSelected(study);setFiles([]);setReport(null);
    document.getElementById('upload-form').reset();
    setNotice('Estudio importado correctamente. Selecciona una serie.');
   }catch(e){setNotice('');setError(e.message);}
