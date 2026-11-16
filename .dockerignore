@@ -1,0 +1,12 @@
+**/.git
+**/data
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/dist
+**/.venv
+**/*.dcm
+**/*.ima
+**/*.zip
+**/*.pdf
+**/.env

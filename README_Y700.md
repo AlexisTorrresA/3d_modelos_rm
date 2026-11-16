@@ -1,0 +1,53 @@
+# RM Studio 3D — Despliegue gestionado Y700
+
+Sigue el estándar de [y700-app-starter](https://github.com/AlexisTorrresA/y700-app-starter).
+
+| Componente | Configuración |
+|---|---|
+| Docker / GHCR | ghcr.io/alexistorrresa/3d-modelos-rm:main |
+| Manifiesto | y700.deploy.yml |
+| Dominio planeado | https://rm3d.alexistorreslabs.com |
+| Puerto interno | 8000 |
+| Contenedor | y700-rm3d |
+| Red de proxy | y700-public |
+| Red PostgreSQL | y700-data |
+| Base dedicada | rm_studio_3d, en postgres-main |
+| Usuario contenedor | 10001:10001 |
+| Salud | GET /health |
+
+No se instala otro PostgreSQL ni se abren puertos del host. El manager crea base de datos y usuario, y entrega DATABASE_URL a la aplicación.
+
+## Secretos requeridos antes del despliegue
+
+- RM3D_ADMIN_PASSWORD: contraseña de acceso (mínimo 14 caracteres).
+- RM3D_SESSION_KEY: clave aleatoria de firma de sesión (mínimo 32 caracteres).
+
+Debes configurarlos directamente en el servidor Y700, sin pegar valores en GitHub ni en el chat:
+
+    sudo y700-secret set RM3D_ADMIN_PASSWORD
+    sudo y700-secret set RM3D_SESSION_KEY
+
+Genera una clave aleatoria segura para RM3D_SESSION_KEY. Hasta que existan, el manager puede indicar waiting_secret y no publicar la aplicación.
+
+## Almacenamiento de originales
+
+El manager actual no ofrece un volumen persistente por aplicación. Para no perder DICOM al recrear Docker, los archivos originales e informes se guardan en fragmentos BYTEA en la base PostgreSQL rm_studio_3d, con SHA256 verificado al rehidratarlos. Los metadatos van en JSONB; las previsualizaciones son caché regenerable.
+
+**Advertencia de capacidad:** archivos grandes harán crecer PostgreSQL y los respaldos. Para uso intensivo, migrar los originales a disco persistente o almacenamiento de objetos privado y mantener solo metadatos en PostgreSQL. No borrar ni sobrescribir respaldos antes de validar una restauración de prueba.
+
+La subida web usa bloques de 16 MiB, inferiores al límite típico por solicitud de Cloudflare.
+
+## Despliegue
+
+1. GitHub Actions prueba y publica una imagen linux/amd64 por cada push a main.
+2. El Y700 Deployment Manager detecta el manifiesto y la imagen.
+3. El manager crea la BD, conecta redes, inicia el contenedor y configura la ruta Caddy.
+4. La web abre el login y protege los endpoints de datos médicos.
+
+Ver estado desde el Y700:
+
+    cat /server/apps-managed/rm3d/status.json
+    docker ps --filter name=y700-rm3d
+    docker logs --tail=100 y700-rm3d
+
+No subir CD, PDF o datos privados al repositorio. Este proyecto es exploratorio, no diagnóstico.

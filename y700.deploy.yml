@@ -1,0 +1,36 @@
+version: 1
+name: rm3d
+image: ghcr.io/alexistorrresa/3d-modelos-rm:main
+container_name: y700-rm3d
+container_port: 8000
+command:
+  - uvicorn
+  - app.main:app
+  - --host
+  - "0.0.0.0"
+  - --port
+  - "8000"
+public:
+  enabled: true
+  subdomain: rm3d
+  hostname: rm3d.alexistorreslabs.com
+healthcheck:
+  path: /health
+database:
+  postgres: true
+  name: rm_studio_3d
+secrets:
+  required:
+    - RM3D_ADMIN_PASSWORD
+    - RM3D_SESSION_KEY
+  optional: []
+environment:
+  APP_ENV: production
+  DATA_DIR: /app/data
+  STATIC_DIR: /app/static
+  PUBLIC_ORIGIN: https://rm3d.alexistorreslabs.com
+  MAX_UPLOAD_MB: "1024"
+  MAX_EXPANDED_MB: "3072"
+resources:
+  memory: 3g
+  cpus: 2.0
