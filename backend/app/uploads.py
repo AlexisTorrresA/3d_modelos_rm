@@ -81,12 +81,24 @@ async def write_chunk(upload_id: str,file_index: int,chunk_index:int,request:Req
     previous=target.stat().st_size if target.exists() else 0
     if previous!=chunk_index*UPLOAD_CHUNK:
         raise HTTPException(409,"Bloque fuera de orden")
-    data=await request.body()
-    if len(data)!=size_expected:
-        raise HTTPException(400,"Tamaño del bloque incorrecto")
+    try:
+        claimed=request.headers.get("content-length")
+        if claimed is not None and int(claimed)!=size_expected:
+            raise HTTPException(400,"Tamaño del bloque incorrecto")
+    except ValueError:
+        raise HTTPException(400,"Content-Length inválido")
+    received=0
     with target.open("ab") as f:
-        f.write(data)
-    return {"received":previous+len(data),"total":maximum}
+        async for block in request.stream():
+            received+=len(block)
+            if received>size_expected:
+                f.truncate(previous)
+                raise HTTPException(413,"Bloque demasiado grande")
+            f.write(block)
+        if received!=size_expected:
+            f.truncate(previous)
+            raise HTTPException(400,"Tamaño del bloque incorrecto")
+    return {"received":previous+received,"total":maximum}
 
 
 @router.post("/api/uploads/{upload_id}/complete",status_code=201)

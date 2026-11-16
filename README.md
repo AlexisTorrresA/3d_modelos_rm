@@ -1,3 +1,5 @@
+> **Despliegue automático en el Y700:** esta aplicación ahora incluye imagen Docker linux/amd64, PostgreSQL existente, autenticación y carga por bloques. Lee [README_Y700.md](./README_Y700.md) y el manifiesto [y700.deploy.yml](./y700.deploy.yml). El entorno local de desarrollo sigue disponible por separado.
+
 # RM Studio — Modelos 3D de Resonancias Magnéticas
 
 Aplicación web local para importar archivos DICOM de resonancia magnética desde un CD, adjuntar informes radiológicos PDF y visualizar cortes y volúmenes 3D.

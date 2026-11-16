@@ -31,8 +31,16 @@ def load_study(study_id: str) -> dict:
     path = study_path(study_id) / "study.json"
     if not path.is_file():
         from . import database
-        if not database.restore(study_id, path.parent):
-            raise HTTPException(404, "Estudio no encontrado")
+        import fcntl
+        root=path.parent
+        root.mkdir(parents=True,exist_ok=True)
+        with (root / ".restore.lock").open("a+") as handle:
+            fcntl.flock(handle.fileno(),fcntl.LOCK_EX)
+            try:
+                if not path.is_file() and not database.restore(study_id,root):
+                    raise HTTPException(404, "Estudio no encontrado")
+            finally:
+                fcntl.flock(handle.fileno(),fcntl.LOCK_UN)
     return json.loads(path.read_text(encoding="utf-8"))
 
 
