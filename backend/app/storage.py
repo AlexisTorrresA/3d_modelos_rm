@@ -30,7 +30,9 @@ def study_path(study_id: str) -> Path:
 def load_study(study_id: str) -> dict:
     path = study_path(study_id) / "study.json"
     if not path.is_file():
-        raise HTTPException(404, "Estudio no encontrado")
+        from . import database
+        if not database.restore(study_id, path.parent):
+            raise HTTPException(404, "Estudio no encontrado")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -39,9 +41,15 @@ def save_study(study_id: str, payload: dict) -> None:
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
+    from . import database
+    database.persist(study_id, payload, path.parent)
 
 
 def list_studies() -> list[dict]:
+    from . import database
+    entries = database.list_payloads()
+    if entries is not None:
+        return [public_study(x) for x in entries]
     base = DATA_DIR / "studies"
     if not base.exists():
         return []
@@ -141,6 +149,8 @@ def new_study() -> tuple[str, Path]:
 
 
 def remove_study(study_id: str) -> None:
+    from . import database
+    database.delete(study_id)
     shutil.rmtree(study_path(study_id), ignore_errors=True)
 
 

@@ -45,15 +45,34 @@ export default function App(){
  },[selected?.id,series]);
  async function upload(e){
   e.preventDefault();if(!files.length||busy)return;
-  setBusy(true);setError('');setNotice('Importando archivos DICOM…');
+  setBusy(true);setError('');setNotice('Preparando subida por bloques…');
   try{
-   const data=new FormData();for(const file of files)data.append('files',file);
-   if(report)data.append('report',report);
-   const study=await api('/api/studies',{method:'POST',body:data});
+   const create=await api('/api/uploads',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({files:files.map(f=>({name:f.name,size:f.size})),
+       report:report?{name:report.name,size:report.size}:null})});
+   const uploadId=create.upload_id;
+   const all=[...files,...(report?[report]:[])];
+   const total=all.reduce((sum,f)=>sum+f.size,0);
+   let sent=0;
+   for(let i=0;i<all.length;i++){
+    const file=all[i];
+    const partSize=create.chunk_bytes;
+    for(let offset=0,index=0;offset<file.size;offset+=partSize,index++){
+     const fragment=file.slice(offset,Math.min(offset+partSize,file.size));
+     const response=await fetch('/api/uploads/'+uploadId+'/files/'+i+'/chunks/'+index,{
+       method:'PUT',body:fragment,headers:{'Content-Type':'application/octet-stream'}
+     });
+     if(!response.ok){let detail='Error enviando los archivos';try{detail=(await response.json()).detail||detail;}catch{}throw new Error(detail);}
+     sent+=fragment.size;
+     setNotice('Subiendo estudio: '+Math.min(100,Math.round(sent/total*100))+'%');
+    }
+   }
+   setNotice('Analizando los DICOM y guardando el estudio en PostgreSQL…');
+   const study=await api('/api/uploads/'+uploadId+'/complete',{method:'POST'});
    await refresh();setSelected(study);setFiles([]);setReport(null);
    document.getElementById('upload-form').reset();
    setNotice('Estudio importado correctamente. Selecciona una serie.');
-  }catch(e){setNotice('');setError(e.message);}
+  }catch(err){setNotice('');setError(err.message);}
   finally{setBusy(false);}
  }
  async function remove(){

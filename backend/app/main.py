@@ -1,13 +1,17 @@
-"""Local-first MRI 3D MVP. Intentionally has no public networking or authentication."""
+"""Local-first MRI 3D viewer, secured for Y700 public deployment."""
 import shutil
 import uuid
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from .dicom_service import find_series, scan_series
+from . import database, auth, uploads
 from .storage import (
     DATA_DIR, MAX_REPORT_BYTES, MAX_UPLOAD_BYTES, extract_dicom_zip,
     list_studies, load_study, new_study, now_utc, public_study,
@@ -15,13 +19,25 @@ from .storage import (
 )
 from .volume import ensure_volume, preview_dir, slice_png
 
+@asynccontextmanager
+async def lifespan(_app):
+    auth.check_configuration()
+    database.initialize()
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Modelos RM 3D — API local",
     description="Visualización exploratoria de DICOM; no apta para uso diagnóstico.",
     version="0.1.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
 )
+
+app.middleware("http")(auth.protect_api)
+app.include_router(auth.router)
+app.include_router(uploads.router)
 
 NO_STORE = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 
@@ -138,3 +154,14 @@ def delete_study(study_id: str):
     load_study(study_id)
     remove_study(study_id)
     return Response(status_code=204)
+
+
+@app.get("/health")
+def manager_health():
+    return {"status": "ok"}
+
+
+# All API endpoints are registered before the static frontend mount.
+STATIC = Path(os.environ.get("STATIC_DIR","/app/static"))
+if STATIC.is_dir():
+    app.mount("/", StaticFiles(directory=str(STATIC),html=True),name="frontend")
