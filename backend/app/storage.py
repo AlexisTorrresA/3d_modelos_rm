@@ -37,7 +37,7 @@ def load_study(study_id: str) -> dict:
         with (root / ".restore.lock").open("a+") as handle:
             fcntl.flock(handle.fileno(),fcntl.LOCK_EX)
             try:
-                if not path.is_file() and not database.restore(study_id,root):
+                if not path.is_file() and not database.restore_metadata(study_id,root):
                     raise HTTPException(404, "Estudio no encontrado")
             finally:
                 fcntl.flock(handle.fileno(),fcntl.LOCK_UN)

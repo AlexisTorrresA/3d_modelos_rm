@@ -245,3 +245,84 @@ def replace_report(study_id: str, content: bytes):
         conn.execute(
             "DELETE FROM rm_report_analysis WHERE study_id=%s",(study_id,)
         )
+
+
+def restore_metadata(study_id: str, root: Path) -> bool:
+    """Restore ONLY sanitized study manifest, not all large DICOM files."""
+    if not enabled():
+        return False
+    with connect() as conn:
+        row = conn.execute("SELECT payload FROM rm_studies WHERE id=%s", (study_id,)).fetchone()
+    if not row:
+        return False
+    root.mkdir(parents=True,exist_ok=True)
+    target=root/"study.json"
+    tmp=root/"study.json.part"
+    tmp.write_text(json.dumps(row[0],ensure_ascii=False),encoding="utf-8")
+    tmp.replace(target)
+    return True
+
+
+def restore_asset(study_id: str, file_key: str, root: Path):
+    """Recover one canonical medical asset, with exact SHA256 validation."""
+    from uuid import UUID
+    if file_key=="report.pdf":
+        dest=root/"report.pdf"
+    elif file_key.startswith("dicom/"):
+        filename=file_key[len("dicom/"):]
+        if not filename.endswith(".dcm"):
+            raise ValueError("Nombre DICOM inválido")
+        UUID(filename[:-4])
+        dest=root/"dicom"/filename
+    else:
+        raise ValueError("Ruta de activo no permitida")
+    if dest.exists():
+        return dest
+    dest.parent.mkdir(parents=True,exist_ok=True)
+    with connect() as conn:
+        row=conn.execute(
+            "SELECT size_bytes,sha256 FROM rm_assets WHERE study_id=%s AND file_key=%s",
+            (study_id,file_key),
+        ).fetchone()
+        if not row:
+            raise FileNotFoundError("Archivo médico no disponible en PostgreSQL")
+        size,sha=row
+        digest=hashlib.sha256()
+        count=0
+        temp=dest.with_name(dest.name+".part")
+        try:
+            with temp.open("wb") as output:
+                for ordinal,data in conn.execute(
+                    "SELECT ordinal,data FROM rm_asset_chunks WHERE study_id=%s AND file_key=%s ORDER BY ordinal",
+                    (study_id,file_key),
+                ):
+                    if ordinal*CHUNK_SIZE!=count:
+                        raise ValueError("Fragmentos DICOM no consecutivos")
+                    output.write(data)
+                    digest.update(data)
+                    count+=len(data)
+            if count!=size or digest.hexdigest()!=sha:
+                raise ValueError("Integridad SHA256 no coincide")
+            temp.replace(dest)
+        except BaseException:
+            temp.unlink(missing_ok=True)
+            raise
+    return dest
+
+
+def restore_series_files(study_id: str, root: Path, filenames: list[str]):
+    """Lazy recovery, one series only, protected against concurrent requests."""
+    import fcntl
+    if not enabled():
+        return
+    root.mkdir(parents=True,exist_ok=True)
+    (root/"dicom").mkdir(parents=True,exist_ok=True)
+    with (root/".restore.lock").open("a+") as handle:
+        fcntl.flock(handle.fileno(),fcntl.LOCK_EX)
+        try:
+            for filename in filenames:
+                dest=root/"dicom"/filename
+                if not dest.is_file():
+                    restore_asset(study_id,"dicom/"+filename,root)
+        finally:
+            fcntl.flock(handle.fileno(),fcntl.LOCK_UN)

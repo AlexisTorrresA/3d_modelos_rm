@@ -32,6 +32,9 @@ def ensure_volume(study_dir: Path, study: dict, series_id: str) -> dict:
             return cached
 
     try:
+        from . import database
+        if database.enabled():
+            database.restore_series_files(study["id"],study_dir,series["filenames"])
         image = read_series(study_dir / "dicom", series)
         # The DICOM coordinate system is only shared across images in the same
         # Frame of Reference. Expose a non-identifying comparison digest.

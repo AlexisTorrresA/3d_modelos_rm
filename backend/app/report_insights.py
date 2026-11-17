@@ -215,6 +215,8 @@ def analyze(study_id:str):
     record=load_study(study_id)
     if not record.get("has_report"):
         raise HTTPException(404,"Este estudio no tiene informe PDF")
+    if database.enabled():
+        database.restore_asset(study_id,"report.pdf",study_path(study_id))
     content=(study_path(study_id)/"report.pdf").read_bytes()
     if len(content)>MAX_REPORT_BYTES:
         raise HTTPException(413,"Informe demasiado grande")

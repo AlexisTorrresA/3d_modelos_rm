@@ -113,6 +113,8 @@ def download_report(study_id: str):
     record = load_study(study_id)
     if not record["has_report"]:
         raise HTTPException(404, "Informe no encontrado")
+    if database.enabled():
+        database.restore_asset(study_id,"report.pdf",study_path(study_id))
     return FileResponse(
         study_path(study_id) / "report.pdf",
         filename="informe-rm.pdf",
