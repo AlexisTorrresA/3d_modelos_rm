@@ -61,3 +61,12 @@ No subir CD, PDF o datos privados al repositorio. Este proyecto es exploratorio,
 - Series de difusión, FA y ADC pueden contener adquisiciones repetidas sobre la misma posición. El lector evita apilar esas posiciones como si fueran nuevos cortes de un volumen 3D.
 - Para segmentación anatómica real y contornos de lesión se requerirá una etapa posterior de máscaras (p. ej. nnU-Net/MONAI o edición manual por vóxeles) con revisión del especialista. No interpretar la asignación de colores como prueba de un diagnóstico.
 
+
+## Máscaras de segmentación NIfTI para colorear estructuras completas
+
+La aplicación acepta cargar una **máscara binaria .nii o .nii.gz** asociada a la serie seleccionada. Puede contener un tumor delimitado por personal clínico, cerebro, ventrículos u otra estructura, siempre que se haya generado y validado por separado. El usuario asigna nombre y color. La máscara conserva su forma anatómica, a diferencia de los marcadores esféricos de referencia.
+
+Para no mostrar tejidos incorrectos, exige coincidencia de dimensiones y geometría física (origen, spacing, dirección) con la serie DICOM asociada. Las máscaras con referencias incompatibles se rechazan, sin realizar transformaciones silenciosas. Las máscaras se guardan en PostgreSQL con su archivo NIfTI original y vista previa comprimida; permanecen tras recrear contenedores. En la vista 3D se usa la misma geometría que los cortes DICOM.
+
+El archivo cargado **no se segmenta automáticamente**: el modelo solo visualiza una segmentación ya existente. Los colores, nombres de lesiones y marcadores de la interfaz no son un diagnóstico.
+

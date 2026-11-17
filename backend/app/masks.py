@@ -89,11 +89,19 @@ async def add_mask(
     source=folder(study_id)/(entry_id+suffix)
     source.write_bytes(content)
     try:
-        image=sitk.ReadImage(str(source))
-        if image.GetDimension()!=3:
-            raise HTTPException(422,"Solo se admiten máscaras volumétricas 3D")
         meta=ensure_volume(study_path(study_id),study,series_id)
         target=meta["full_dimensions"]
+        reader=sitk.ImageFileReader()
+        reader.SetFileName(str(source))
+        reader.ReadImageInformation()
+        if reader.GetDimension()!=3:
+            raise HTTPException(422,"Solo se admiten máscaras volumétricas 3D")
+        if list(reader.GetSize())!=target:
+            raise HTTPException(422,"La máscara no tiene la misma cantidad de vóxeles que la secuencia DICOM de referencia")
+        # Guard against compressed NIfTI payloads that are tiny on disk but huge in memory.
+        if math.prod(reader.GetSize())>150_000_000:
+            raise HTTPException(413,"Máscara excesivamente grande")
+        image=sitk.ReadImage(str(source))
         # NIfTI is read in the ITK physical LPS reference system. Exact grid
         # correspondence avoids silently assigning anatomy to wrong voxels.
         if list(image.GetSize())!=target:
@@ -114,12 +122,15 @@ async def add_mask(
         count=int(binary.sum())
         if count<1:
             raise HTTPException(422,"La máscara está vacía")
-        base=sitk.GetImageFromArray(binary)
-        base.CopyInformation(image)
         factors=meta["preview_downsample_factors"]
-        preview=sitk.Shrink(base,factors) if any(x>1 for x in factors) else base
-        pixels=sitk.GetArrayFromImage(preview).astype(np.uint8)
-        if list(preview.GetSize())!=meta["dimensions"]:
+        fz,fy,fx=(factors[2],factors[1],factors[0])
+        dz,dy,dx=(meta["dimensions"][2],meta["dimensions"][1],meta["dimensions"][0])
+        # Max pooling, rather than nearest-point Shrink, prevents small segmented
+        # regions disappearing when producing a lower-resolution preview.
+        pixels=binary[:dz*fz,:dy*fy,:dx*fx].reshape(
+            dz,fz,dy,fy,dx,fx
+        ).max(axis=(1,3,5)).astype(np.uint8)
+        if pixels.shape!=(dz,dy,dx):
             raise HTTPException(422,"No se pudo ajustar la máscara a la vista previa")
 
         from datetime import datetime,timezone
