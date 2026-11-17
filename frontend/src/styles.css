@@ -125,3 +125,6 @@
 .anatomy-legend{display:flex;gap:9px;align-items:flex-start;font-size:10.5px;line-height:1.55;color:#bfaf99;margin-top:12px}
 .anatomy-legend svg{flex-shrink:0}
 @media(max-width:700px){.report-findings{grid-template-columns:1fr}.report-filter label{margin-left:0}.report-actions form{width:100%}.report-input input{max-width:130px}}
+
+.report-region{font-size:10px;line-height:1.5;color:#bad4e6;background:#102c3d;padding:7px 9px;border-radius:7px;margin:0 0 10px}
+.report-region small{display:block;color:#91aabb;font-size:10px;margin-top:3px}

@@ -95,6 +95,11 @@ export default function ReportInsights({study,masks=[],analysis,onAnalysis,onRep
        <small>Página {item.page}</small>
       </div>
       <blockquote>{item.evidence}</blockquote>
+      {!!item.regions_in_text?.length&&<div className="report-region">
+       Regiones citadas en el mismo texto: {item.regions_in_text.join(' · ')}
+       {item.laterality_in_text?' · Lateralidad mencionada: '+item.laterality_in_text:''}
+       <small>Son palabras del informe, no una ubicación calculada en el 3D.</small>
+      </div>}
       <div className="report-finding-actions">
        <small>{reviews[item.review_status]}</small>
        {item.assertion!=='negated'&&<button className="secondary" disabled={busy}
