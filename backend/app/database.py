@@ -56,6 +56,22 @@ def initialize():
                     REFERENCES rm_assets(study_id,file_key) ON DELETE CASCADE
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS rm_annotations (
+                id UUID PRIMARY KEY,
+                study_id UUID NOT NULL REFERENCES rm_studies(id) ON DELETE CASCADE,
+                series_id UUID NOT NULL,
+                category TEXT NOT NULL,
+                label TEXT NOT NULL,
+                color TEXT NOT NULL,
+                radius_mm REAL NOT NULL,
+                x_mm REAL NOT NULL,
+                y_mm REAL NOT NULL,
+                z_mm REAL NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS rm_annotations_study_idx ON rm_annotations(study_id)")
 
 
 def persist(study_id: str, payload: dict, root: Path):

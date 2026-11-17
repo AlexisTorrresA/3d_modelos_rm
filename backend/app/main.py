@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from .dicom_service import find_series, scan_series
-from . import database, auth, uploads
+from . import database, auth, uploads, annotations
 from .storage import (
     DATA_DIR, MAX_REPORT_BYTES, MAX_UPLOAD_BYTES, extract_dicom_zip,
     list_studies, load_study, new_study, now_utc, public_study,
@@ -38,6 +38,7 @@ app = FastAPI(
 app.middleware("http")(auth.protect_api)
 app.include_router(auth.router)
 app.include_router(uploads.router)
+app.include_router(annotations.router)
 
 NO_STORE = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 

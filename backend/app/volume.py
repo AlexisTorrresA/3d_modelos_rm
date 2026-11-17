@@ -24,7 +24,9 @@ def ensure_volume(study_dir: Path, study: dict, series_id: str) -> dict:
     target = preview_dir(study_dir, series_id)
     meta_path = target / "volume.json"
     if meta_path.exists() and (target / "volume.raw").exists() and (target / "full.npy").exists():
-        return json.loads(meta_path.read_text(encoding="utf-8"))
+        cached = json.loads(meta_path.read_text(encoding="utf-8"))
+        if "full_origin" in cached and "full_direction" in cached:
+            return cached
 
     try:
         image = read_series(study_dir / "dicom", series)
@@ -59,6 +61,8 @@ def ensure_volume(study_dir: Path, study: dict, series_id: str) -> dict:
             "direction": list(small.GetDirection()),
             "full_dimensions": list(size),
             "full_spacing": list(image.GetSpacing()),
+            "full_origin": list(image.GetOrigin()),
+            "full_direction": list(image.GetDirection()),
             "intensity_window": [float(low), float(high)],
             "preview_downsample_factors": factors,
             "bytes": pixels.nbytes,

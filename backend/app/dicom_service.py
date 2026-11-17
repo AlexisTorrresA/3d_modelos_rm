@@ -57,6 +57,26 @@ def find_series(study: dict, series_id: str) -> dict:
 
 def read_series(dicom_dir: Path, series: dict) -> sitk.Image:
     """Use GDCM geometry ordering, never lexicographic filenames."""
+    # A DTI/perfusion series may contain repeated physical slice positions for
+    # different gradients/time points. Treating these as one 3D stack produces a
+    # physically false and disproportionate volume.
+    positions = []
+    for fname in series["filenames"]:
+        ds = pydicom.dcmread(
+            str(dicom_dir / fname), stop_before_pixels=True,
+            specific_tags=["ImagePositionPatient"],
+        )
+        coordinates = ds.get("ImagePositionPatient")
+        if coordinates and len(coordinates) == 3:
+            positions.append(tuple(round(float(value), 2) for value in coordinates))
+    if positions and len(positions) != len(set(positions)):
+        unique = len(set(positions))
+        raise ValueError(
+            f"Esta serie contiene {len(positions)} imágenes en solo {unique} "
+            "posiciones espaciales: posiblemente varias direcciones de difusión "
+            "o adquisiciones. No es un único volumen 3D. "
+            "Seleccione una serie anatómica T1, T2 o FLAIR."
+        )
     names = list(sitk.ImageSeriesReader.GetGDCMSeriesFileNames(
         str(dicom_dir), series["uid"], False, False
     ))
