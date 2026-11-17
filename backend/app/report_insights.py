@@ -33,9 +33,9 @@ CATEGORY_PATTERNS = {
         r"\b(?:m[eé]dula\s+espinal|cord[oó]n\s+medular|canal\s+raqu[ií]deo|raquis|espinal\w*)\b"),
     "nerves": ("Nervios / tractos", "#ab9cff",
         r"\b(?:nervios?\s+(?:craneales|[oó]pticos?|faciales?|trig[eé]minos?)|"
-        r"pares?\s+craneales|tractos?\s+(?:[oó]pticos?|nerviosos?)|quiasma\s+[oó]ptico)\b"),
+        r"(?:par\s+craneal|pares\s+craneales)|tractos?\s+(?:[oó]pticos?|nerviosos?)|quiasma\s+[oó]ptico)\b"),
     "vessels": ("Vasos sanguíneos", "#ee96b9",
-        r"\b(?:arteri\w*|ven\w*|vascular\w*|vasos?\s+sangu[ií]neos?)\b"),
+        r"\b(?:arteri\w*|venas?|venoso\w*|venosa\w*|vascular\w*|vasos?\s+sangu[ií]neos?)\b"),
     "brain": ("Cerebro / parénquima", "#f3d1a9",
         r"\b(?:cerebro|par[eé]nquima\s+(?:cerebral|encef[aá]lico)|"
         r"hemisferios?\s+cerebral(?:es)?|corteza\s+cerebral)\b"),
@@ -47,6 +47,23 @@ UNCERTAIN = re.compile(r"\b(?:posible|probable|sugestiv[oa]|sospech\w*|podr[ií]
                        r"compatible\s+con|a\s+descartar|no\s+se\s+descarta)\b",re.I)
 MAX_PAGES = 60
 MAX_FINDINGS = 60
+REGIONS = {
+    "hipotálamo":r"\bhipotal[aá]m\w*",
+    "región supraselar":r"\bsuprasel\w*",
+    "fosa posterior":r"\bfosa\s+posterior\b",
+    "región pineal":r"\bpineal\b",
+    "cerebelo":r"\bcerebel\w*",
+    "tronco encefálico":r"\btronco(?:\s+encef[aá]lico)?\b",
+    "médula espinal":r"\bm[eé]dula\s+espinal\b",
+    "región espinal":r"\bespinal\w*\b",
+    "ventrículos":r"\bventr[ií]cul\w*",
+    "tálamo":r"\bt[aá]lam\w*",
+    "nervio óptico":r"\b(?:nervios?\s+[oó]pticos?|quiasma\s+[oó]ptico)\b",
+    "lóbulos frontales":r"\bfrontal\w*",
+    "lóbulos temporales":r"\btemporal\w*",
+}
+REGION_RX={k:re.compile(v,re.I) for k,v in REGIONS.items()}
+
 
 
 def extract_pdf_text(content: bytes):
@@ -84,13 +101,23 @@ def detect_mentions(pages: list[tuple[int,str]]) -> list[dict]:
                     continue
                 seen.add(key)
                 context_before=text[max(0,match.start()-65):match.start()]
-                negated=bool(NEG.search(context_before))
                 uncertain=bool(UNCERTAIN.search(text[max(0,match.start()-75):min(len(text),match.end()+50)]))
+                # "no se descarta" indicates uncertainty, not an absent finding.
+                negated=bool(NEG.search(context_before)) and not bool(
+                    re.search(r"no\s+se\s+descarta",context_before,re.I)
+                )
+                locations=[name for name,pattern in REGION_RX.items() if pattern.search(text)]
+                left_right=(
+                    "derecha" if re.search(r"\bderech\w*",text,re.I) else
+                    "izquierda" if re.search(r"\bizquierd\w*",text,re.I) else
+                    "bilateral" if re.search(r"\bbilateral\w*",text,re.I) else None
+                )
                 label,color,_=CATEGORY_PATTERNS[category]
                 results.append({
                     "id":str(uuid.uuid4()),"category":category,"label":label,"color":color,
                     "page":page_number,"evidence":snippet[:320],
-                    "matched_text":match.group(0),
+                    "matched_text":match.group(0), "regions_in_text":locations[:5],
+                    "laterality_in_text":left_right,
                     "assertion":"negated" if negated else ("uncertain" if uncertain else "mentioned"),
                     "review_status":"pending","source_type":"report_text","linked_mask_id":None,
                 })

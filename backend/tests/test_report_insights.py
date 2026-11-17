@@ -24,6 +24,8 @@ def test_report_mentions_include_exact_evidence_and_no_geometry():
     assert any(x["category"]=="lesion" and x["assertion"]=="mentioned" for x in found)
     assert any(x["category"]=="cerebellum" and x["assertion"]=="negated" for x in found)
     assert any(x["category"]=="leptomeningeal" and x["assertion"]=="uncertain" for x in found)
+    assert not any(x["category"]=="vessels" for x in found), "ventricular no debe confundirse con venas"
+    assert any("hipotálamo" in x["regions_in_text"] for x in found)
 
 
 def test_report_upload_after_dicom_and_review_flow(tmp_path,monkeypatch):
@@ -69,3 +71,12 @@ def test_report_upload_after_dicom_and_review_flow(tmp_path,monkeypatch):
     invalid=client.patch("/api/studies/"+study_id+"/report/findings/"+item["id"],
         json={"review_status":"invalid"})
     assert invalid.status_code==400
+
+
+
+def test_uncertainty_not_misclassified_as_absence():
+    values=report_insights.detect_mentions([(1,"No se descarta lesión cerebral en la región supraselar.")])
+    assert values
+    lesion=next(x for x in values if x["category"]=="lesion")
+    assert lesion["assertion"]=="uncertain"
+    assert "región supraselar" in lesion["regions_in_text"]
