@@ -243,7 +243,7 @@ export default function PatientReconstruction({study,masks=[],markers=[],analysi
     <div className="patient-atlas-layers">{ATLAS_PARTS.map(x=>
      <div className="patient-atlas-layer" key={x.id}>
       <label><input type="checkbox" checked={atlasLayers[x.id]?.visible!==false}
-       onChange={e=>setAtlasLayers(st=>({...st,[x.id], [x.id]:{...st[x.id],visible:e.target.checked}}))}/>
+       onChange={e=>setAtlasLayers(st=>({...st,[x.id]:{...st[x.id],visible:e.target.checked}}))}/>
        <span>{x.label}<small>{x.note}</small></span></label>
       <input type="range" min="0" max="100" aria-label={'Opacidad '+x.label}
        value={Math.round((atlasLayers[x.id]?.opacity??x.opacity)*100)}
