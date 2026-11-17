@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import SimpleITK as sitk
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
-from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from . import database
 from .dicom_service import find_series
@@ -179,6 +179,41 @@ def get_mask_raw(study_id:str,mask_id:str):
         compressed=path.read_bytes()
     return Response(zlib.decompress(compressed),media_type="application/octet-stream",
         headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"})
+
+
+
+class MaskAppearance(BaseModel):
+    color: str
+
+
+@router.patch("/api/studies/{study_id}/masks/{mask_id}")
+def edit_mask(study_id:str,mask_id:str,payload:MaskAppearance):
+    load_study(study_id)
+    try:uuid.UUID(mask_id)
+    except ValueError:raise HTTPException(404,"Máscara no encontrada")
+    if not HEX.fullmatch(payload.color):
+        raise HTTPException(400,"Color hexadecimal inválido")
+    if database.enabled():
+        from psycopg.types.json import Jsonb
+        with database.connect() as conn:
+            row=conn.execute(
+                "SELECT meta FROM rm_masks WHERE study_id=%s AND id=%s",
+                (study_id,mask_id),
+            ).fetchone()
+            if not row:raise HTTPException(404,"Máscara no encontrada")
+            record=row[0]
+            record["color"]=payload.color.lower()
+            conn.execute(
+                "UPDATE rm_masks SET color=%s,meta=%s WHERE study_id=%s AND id=%s",
+                (payload.color.lower(),Jsonb(record),study_id,mask_id),
+            )
+    else:
+        target=folder(study_id)/(mask_id+".json")
+        if not target.is_file():raise HTTPException(404,"Máscara no encontrada")
+        record=json.loads(target.read_text(encoding="utf-8"))
+        record["color"]=payload.color.lower()
+        target.write_text(json.dumps(record,ensure_ascii=False),encoding="utf-8")
+    return metadata(record)
 
 
 @router.delete("/api/studies/{study_id}/masks/{mask_id}",status_code=204)

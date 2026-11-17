@@ -21,6 +21,7 @@ export default function MaskControls({study,series,meta,masks,setMasks}){
  useEffect(()=>{setFile(null);setError('');setNotice('');},[study?.id]);
  async function upload(event){
   event.preventDefault();
+  const form=event.currentTarget;
   if(!file||!meta||uploading)return;
   setUploading(true);setError('');setNotice('Verificando coordenadas y dimensiones de la máscara…');
   try{
@@ -34,7 +35,7 @@ export default function MaskControls({study,series,meta,masks,setMasks}){
    setMasks(prev=>[...prev,{...record,opacity:.8,visible:true}]);
    setNotice('Máscara importada. Puedes activarla, cambiar su color y ver la geometría 3D.');
    setFile(null);
-   event.currentTarget.reset();
+   form.reset();
   }catch(e){setNotice('');setError(e.message);}
   finally{setUploading(false);}
  }

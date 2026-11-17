@@ -2,7 +2,8 @@ import {useCallback,useEffect,useState} from 'react';
 import {Activity,AlertTriangle,Box,Check,ChevronRight,Disc3,Download,FileText,FolderOpen,HardDrive,Layers,LoaderCircle,Scan,ShieldAlert,Trash2,UploadCloud} from 'lucide-react';
 import VolumeViewer from './VolumeViewer.jsx';
 import IntegratedStudio, {ColorPicker} from './IntegratedStudio.jsx';
-import {CATEGORY_OPTIONS, chooseAnatomical, isDiffusion, modalityHint, toPatient, toVoxel} from './geometry.js';
+import MaskControls from './MaskControls.jsx';
+import {CATEGORY_OPTIONS, chooseAnatomical, isDiffusion, modalityHint, toPatient, toVoxel, geometryCompatible} from './geometry.js';
 
 async function api(url,options){
  const r=await fetch(url,{cache:'no-store',...options});
@@ -91,6 +92,7 @@ export default function App(){
  const [singleColor,setSingleColor]=useState('#e1e7ee');
  const [singleOpacity,setSingleOpacity]=useState(0.8);
  const [markers,setMarkers]=useState([]);
+ const [masks,setMasks]=useState([]);
  const [marking,setMarking]=useState(false);
  const [markerCategory,setMarkerCategory]=useState('lesion');
  const [markerColor,setMarkerColor]=useState('#ff657e');
@@ -99,13 +101,16 @@ export default function App(){
  const refresh=useCallback(async()=>{const data=await api('/api/studies');setStudies(data);return data;},[]);
  useEffect(()=>{refresh().then(data=>{if(data.length)setSelected(data[0]);}).catch(e=>setError(e.message));},[refresh]);
  useEffect(()=>{
-  setSeries(selected?.series?.[0]?.id||null);setMarking(false);setMarkers([]);
+  setSeries(selected?.series?.[0]?.id||null);setMarking(false);setMarkers([]);setMasks([]);
  },[selected?.id]);
  useEffect(()=>{
   let alive=true;
   if(!selected)return;
   api('/api/studies/'+selected.id+'/markers')
    .then(items=>{if(alive)setMarkers(items);})
+   .catch(e=>{if(alive)setError(e.message);});
+  api('/api/studies/'+selected.id+'/masks')
+   .then(items=>{if(alive)setMasks(items.map(m=>({...m,opacity:.8,visible:true})));})
    .catch(e=>{if(alive)setError(e.message);});
   return()=>{alive=false;};
  },[selected?.id]);
@@ -185,6 +190,11 @@ export default function App(){
   catch(e){setError(e.message);}finally{setBusy(false);}
  }
  const chosen=selected?.series?.find(s=>s.id===series);
+ const layersMasks=meta&&selected?masks.filter(m=>geometryCompatible(meta,m.preview_meta)).map(m=>({
+  ...m,meta:m.preview_meta,
+  url:'/api/studies/'+selected.id+'/masks/'+m.id+'/volume.raw',
+  opacity:m.opacity??.8,visible:m.visible!==false,
+ })):[];
  return <div className="layout">
   <aside className="sidebar">
    <div className="brand"><div className="logo"><Activity size={22}/></div><div><strong>RM Studio</strong><small>Modelos médicos 3D</small></div></div>
@@ -235,13 +245,13 @@ export default function App(){
      </div>
      <div className="viewers">
       {mode==='integral'&&meta?
-       <IntegratedStudio study={selected} series={series} meta={meta} markers={markers}/>:
+       <IntegratedStudio study={selected} series={series} meta={meta} markers={markers} masks={layersMasks}/>:
        <section className="panel viewer">
         <div className="viewer-heading"><div><h3><Box size={20}/> {mode==='integral'?'Selecciona una serie anatómica':'Volumen tridimensional por secuencia'}</h3><p>{chosen?.description||'Selecciona una secuencia'}</p></div>{meta&&<span className="resolution">{meta.dimensions.join(' × ')} vóxeles</span>}</div>
         {mode==='individual'&&<div className="single-colors"><label>Color de los vóxeles visibles <ColorPicker value={singleColor} onChange={setSingleColor}/></label>
          <label>Opacidad <input type="range" min="0" max="100" value={Math.round(singleOpacity*100)} onChange={e=>setSingleOpacity(Number(e.target.value)/100)}/></label></div>}
         {loading?<div className="placeholder"><LoaderCircle className="spin" size={30}/>Preparando volumen…</div>:meta?
-         <VolumeViewer layers={[{id:series,url:seriesUrl(selected.id,series,'volume.raw'),meta,color:singleColor,opacity:singleOpacity,visible:true}]} markers={markers}/>:
+         <VolumeViewer layers={[{id:series,url:seriesUrl(selected.id,series,'volume.raw'),meta,color:singleColor,opacity:singleOpacity,visible:true}]} markers={markers} masks={layersMasks}/>:
          <div className="placeholder"><Scan size={35}/>Selecciona una serie 3D compatible</div>}
         {meta&&<div className="technical"><span>Spacing original: {meta.full_spacing.map(v=>v.toFixed(2)).join(' / ')} mm</span><span>Dimensiones originales: {meta.full_dimensions.join(' × ')}</span><span>Vista 3D: {meta.preview_downsample_factors.some(x=>x>1)?'reducida':'sin reducción espacial'}</span></div>}
        </section>}
@@ -253,6 +263,7 @@ export default function App(){
       {meta&&<MarkerControls markers={markers} marking={marking} setMarking={setMarking}
        category={markerCategory} setCategory={setMarkerCategory} color={markerColor} setColor={setMarkerColor}
        label={markerLabel} setLabel={setMarkerLabel} radius={markerRadius} setRadius={setMarkerRadius} onDelete={deleteMarker}/>}
+      {meta&&<MaskControls study={selected} series={series} meta={meta} masks={masks} setMasks={setMasks}/>}
      </div>
     </div>
    </>}

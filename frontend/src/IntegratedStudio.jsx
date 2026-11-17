@@ -30,7 +30,7 @@ export function ColorPicker({value,onChange}){
   {PALETTE.map(p=><option key={p.hex} value={p.hex}>{p.name}</option>)}
  </select>;
 }
-export default function IntegratedStudio({study,series,meta,markers}){
+export default function IntegratedStudio({study,series,meta,markers,masks=[]}){
  const [baseColor,setBaseColor]=useState('#e1e7ee');
  const [baseOpacity,setBaseOpacity]=useState(.75);
  const [showBase,setShowBase]=useState(true);
@@ -131,7 +131,7 @@ export default function IntegratedStudio({study,series,meta,markers}){
   <div className="fusion-caution"><Info size={15}/>
    Los colores son solamente visuales. Las capas se colocan con coordenadas DICOM compatibles y solapamiento físico aproximado;
    esto NO es registro rígido/deformable ni identifica estructuras o tumores automáticamente. Hasta {MAX_VOLUMES} volúmenes simultáneos para cuidar el rendimiento.</div>
-  {meta?<VolumeViewer layers={selected} markers={markers}/>:<div className="placeholder">Preparando la secuencia principal…</div>}
+  {meta?<VolumeViewer layers={selected} markers={markers} masks={masks}/>:<div className="placeholder">Preparando la secuencia principal…</div>}
   <div className="technical">
    <span>Volúmenes visibles: {selected.length}</span>
    <span>Referencias manuales: {markers.length}</span>
