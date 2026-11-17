@@ -74,3 +74,10 @@ export function overlap(reference,overlay){
   const bv=b.reduce((v,p)=>v*Math.max(1,p[1]-p[0]),1);
   return intersection/Math.min(av,bv);
 }
+
+export function geometryCompatible(a,b){
+ if(!a||!b)return false;
+ if(a.study_reference && b.study_reference && a.study_reference!==b.study_reference)return false;
+ if(a.frame_reference && b.frame_reference && a.frame_reference!==b.frame_reference)return false;
+ return overlap(a,b)>=.1;
+}

@@ -29,9 +29,18 @@ function tintOpacity(transfer,alpha,visible){
 }
 function setAppearance(model,layer){
  const color=vtkColorTransferFunction.newInstance();
- tintColor(color,layer.color);
  const opacity=vtkPiecewiseFunction.newInstance();
- tintOpacity(opacity,layer.opacity,layer.visible);
+ if(model.isMask){
+  const colorValues=rgb(layer.color);
+  color.addRGBPoint(0,0,0,0);
+  color.addRGBPoint(1,...colorValues);
+  opacity.addPoint(0,0);
+  opacity.addPoint(.5,0);
+  opacity.addPoint(1,layer.visible?Math.min(1,layer.opacity):0);
+ }else{
+  tintColor(color,layer.color);
+  tintOpacity(opacity,layer.opacity,layer.visible);
+ }
  model.volume.getProperty().setRGBTransferFunction(0,color);
  model.volume.getProperty().setScalarOpacity(0,opacity);
  if(model.colors)model.colors.delete();
@@ -40,22 +49,24 @@ function setAppearance(model,layer){
  model.opacity=opacity;
 }
 
-export default function VolumeViewer({layers,markers=[]}){
+export default function VolumeViewer({layers,markers=[],masks=[]}){
  const container=useRef(null);
  const renderer=useRef(null);
  const actors=useRef([]);
  const volumes=useRef([]);
- const liveLayers=useRef(layers);
+ const enabledMasks=masks.filter(m=>m.meta);
+ const allLayers=[...layers,...enabledMasks.map(m=>({...m,id:'mask:'+m.id,isMask:true}))];
+ const liveLayers=useRef(allLayers);
  const [status,setStatus]=useState('Preparando volumen 3D…');
- const layerIds=layers.filter(l=>l.meta).map(l=>l.id+'|'+l.url+'|'+l.meta.bytes).join('~');
+ const layerIds=allLayers.filter(l=>l.meta).map(l=>l.id+'|'+l.url+'|'+(l.meta.bytes||0)).join('~');
 
- useEffect(()=>{liveLayers.current=layers;
+ useEffect(()=>{liveLayers.current=allLayers;
   for(const model of volumes.current){
-   const layer=layers.find(l=>l.id===model.id);
+   const layer=allLayers.find(l=>l.id===model.id);
    if(layer)setAppearance(model,layer);
   }
   renderer.current?.getRenderWindow().render();
- },[layers]);
+ },[layers,masks]);
 
  useEffect(()=>{
   let live=true,view=null,observer=null;
@@ -92,8 +103,9 @@ export default function VolumeViewer({layers,markers=[]}){
       mapper.setSampleDistance(Math.min(...layer.meta.spacing)*1.0);
       const volume=vtkVolume.newInstance();
       volume.setMapper(mapper);
-      volume.getProperty().setInterpolationTypeToLinear();
-      const model={id:layer.id,image,mapper,volume,colors:null,opacity:null};
+      if(layer.isMask)volume.getProperty().setInterpolationTypeToNearest();
+      else volume.getProperty().setInterpolationTypeToLinear();
+      const model={id:layer.id,isMask:!!layer.isMask,image,mapper,volume,colors:null,opacity:null};
       setAppearance(model,liveLayers.current.find(l=>l.id===layer.id)||layer);
       volumes.current.push(model);
       view.getRenderer().addVolume(volume);
@@ -146,6 +158,6 @@ export default function VolumeViewer({layers,markers=[]}){
 
  return <div className="volume">
   <div className="volume-container" ref={container}/>
-  {status?<div className="volume-status">{status}</div>:<div className="volume-tip">Arrastra para rotar · Rueda para acercar · Esferas = marcadores manuales</div>}
+  {status?<div className="volume-status">{status}</div>:<div className="volume-tip">Arrastra para rotar · Rueda para acercar · Esferas = marcadores · Áreas = máscaras subidas</div>}
  </div>;
 }
