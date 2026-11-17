@@ -1,6 +1,8 @@
 import {useCallback,useEffect,useState} from 'react';
 import {Activity,AlertTriangle,Box,Check,ChevronRight,Disc3,Download,FileText,FolderOpen,HardDrive,Layers,LoaderCircle,Scan,ShieldAlert,Trash2,UploadCloud} from 'lucide-react';
 import VolumeViewer from './VolumeViewer.jsx';
+import IntegratedStudio, {ColorPicker} from './IntegratedStudio.jsx';
+import {CATEGORY_OPTIONS, chooseAnatomical, isDiffusion, modalityHint, toPatient, toVoxel} from './geometry.js';
 
 async function api(url,options){
  const r=await fetch(url,{cache:'no-store',...options});
@@ -10,15 +12,69 @@ async function api(url,options){
 function seriesUrl(study,series,path){
  return '/api/studies/'+encodeURIComponent(study)+'/series/'+encodeURIComponent(series)+'/'+path;
 }
-function Slice({study,series,plane,title,count}){
+function Slice({study,series,plane,title,count,meta,markers=[],marking=false,onMark}){
  const [index,setIndex]=useState(Math.floor((count-1)/2));
  const [failed,setFailed]=useState(false);
+ useEffect(()=>{setIndex(Math.floor((count-1)/2));setFailed(false);},[series,count]);
  const src=seriesUrl(study,series,'slice')+'?plane='+plane+'&index='+index;
+ const axis=plane==='axial'?2:plane==='coronal'?1:0;
+ const width=plane==='sagital'?meta.full_dimensions[1]:meta.full_dimensions[0];
+ const height=plane==='axial'?meta.full_dimensions[1]:meta.full_dimensions[2];
+ const visible=markers.flatMap(m=>{
+  const ijk=toVoxel(m.position_mm,meta);
+  if(Math.abs(ijk[axis]-index)>0.7)return [];
+  const x=plane==='sagital'?ijk[1]:ijk[0];
+  const y=plane==='axial'?ijk[1]:ijk[2];
+  return [{...m,x:100*x/width,y:100*y/height}];
+ });
+ function addMarker(event){
+  if(!marking||!onMark)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const x=Math.max(0,Math.min(width-1,Math.floor((event.clientX-rect.left)/rect.width*width)));
+  const y=Math.max(0,Math.min(height-1,Math.floor((event.clientY-rect.top)/rect.height*height)));
+  const ijk=plane==='axial'?[x,y,index]:plane==='coronal'?[x,index,y]:[index,x,y];
+  onMark(toPatient(ijk,meta));
+ }
  return <div className="slice">
   <div className="slice-label"><strong>{title}</strong><span>{index+1} / {count}</span></div>
-  <div className="slice-image">{failed?<span>No se pudo abrir el corte</span>:<img src={src} alt={'Corte '+title} onError={()=>setFailed(true)}/>}</div>
+  <div className="slice-image">
+   {failed?<span>No se pudo abrir el corte</span>:
+    <div className={'slice-image-frame '+(marking?'marking':'')}>
+     <img src={src} alt={'Corte '+title} onError={()=>setFailed(true)} onClick={addMarker}/>
+     {visible.map(m=><span key={m.id} className="slice-marker" title={m.label}
+        style={{left:m.x+'%',top:m.y+'%',borderColor:m.color}} />)}
+    </div>}
+  </div>
   <input type="range" min="0" max={Math.max(0,count-1)} value={index} onChange={e=>{setIndex(Number(e.target.value));setFailed(false);}} aria-label={'Corte '+title}/>
  </div>;
+}
+function MarkerControls({markers,marking,setMarking,category,setCategory,color,setColor,label,setLabel,radius,setRadius,onDelete}){
+ return <section className="panel marker-panel">
+  <div className="marker-heading"><div><h3>Marcadores anatómicos con color</h3>
+   <p className="muted small">Selecciona una categoría, activa el marcado y haz clic sobre un corte para ubicar una referencia en el modelo 3D.</p></div>
+   <button type="button" className={marking?'mark-toggle active':'mark-toggle'} onClick={()=>setMarking(!marking)}>
+    {marking?'● Marcado activado':'○ Activar marcado'}
+   </button>
+  </div>
+  <div className="marker-fields">
+   <label>Tipo de referencia
+    <select value={category} onChange={e=>{
+     const item=CATEGORY_OPTIONS.find(x=>x.id===e.target.value);
+     setCategory(item.id);setColor(item.color);setLabel(item.label);
+    }}>{CATEGORY_OPTIONS.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select>
+   </label>
+   <label>Color <input type="color" value={color} onChange={e=>setColor(e.target.value)}/></label>
+   <label>Nombre <input type="text" maxLength={70} value={label} onChange={e=>setLabel(e.target.value)} placeholder="Nombre de referencia"/></label>
+   <label>Radio orientativo: {radius} mm
+    <input type="range" min="1" max="20" step="1" value={radius} onChange={e=>setRadius(Number(e.target.value))}/>
+   </label>
+  </div>
+  <p className="marker-disclaimer">Los puntos son esferas de referencia colocadas manualmente: no equivalen al contorno, tamaño ni diagnóstico de un tumor. Una segmentación precisa requiere máscaras validadas.</p>
+  {markers.length>0&&<div className="marker-list">{markers.map(m=><div className="marker-row" key={m.id}>
+    <span className="marker-dot" style={{backgroundColor:m.color}}/><span className="marker-name">{m.label}</span><small>radio {Number(m.radius_mm).toFixed(0)} mm</small>
+    <button className="marker-delete" onClick={()=>onDelete(m.id)} type="button">Quitar</button>
+  </div>)}</div>}
+ </section>;
 }
 export default function App(){
  const [studies,setStudies]=useState([]);
@@ -31,9 +87,56 @@ export default function App(){
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
  const [notice,setNotice]=useState('');
+ const [mode,setMode]=useState('individual');
+ const [singleColor,setSingleColor]=useState('#e1e7ee');
+ const [singleOpacity,setSingleOpacity]=useState(0.8);
+ const [markers,setMarkers]=useState([]);
+ const [marking,setMarking]=useState(false);
+ const [markerCategory,setMarkerCategory]=useState('lesion');
+ const [markerColor,setMarkerColor]=useState('#ff657e');
+ const [markerLabel,setMarkerLabel]=useState('Lesión / tumor (manual)');
+ const [markerRadius,setMarkerRadius]=useState(5);
  const refresh=useCallback(async()=>{const data=await api('/api/studies');setStudies(data);return data;},[]);
  useEffect(()=>{refresh().then(data=>{if(data.length)setSelected(data[0]);}).catch(e=>setError(e.message));},[refresh]);
- useEffect(()=>{setSeries(selected?.series?.[0]?.id||null);},[selected?.id]);
+ useEffect(()=>{
+  setSeries(selected?.series?.[0]?.id||null);setMarking(false);setMarkers([]);
+ },[selected?.id]);
+ useEffect(()=>{
+  let alive=true;
+  if(!selected)return;
+  api('/api/studies/'+selected.id+'/markers')
+   .then(items=>{if(alive)setMarkers(items);})
+   .catch(e=>{if(alive)setError(e.message);});
+  return()=>{alive=false;};
+ },[selected?.id]);
+ function selectMode(value){
+  setMode(value);setMarking(false);
+  if(value==='integral'&&selected){
+   const ideal=chooseAnatomical(selected.series);
+   if(isDiffusion(selected.series.find(x=>x.id===series)?.description))setSeries(ideal?.id||series);
+  }
+ }
+ async function markPoint(position){
+  if(!selected||!series||!markerLabel.trim())return;
+  try{
+   const item=await api('/api/studies/'+selected.id+'/markers',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({series_id:series,category:markerCategory,
+      label:markerLabel.trim(),color:markerColor,
+      radius_mm:markerRadius,position_mm:position}),
+   });
+   setMarkers(current=>[...current,item]);
+   setNotice('Marcador manual añadido. Su esfera es orientativa, no una segmentación.');
+  }catch(e){setError(e.message);}
+ }
+ async function deleteMarker(markerId){
+  if(!selected)return;
+  try{
+   await api('/api/studies/'+selected.id+'/markers/'+markerId,{method:'DELETE'});
+   setMarkers(current=>current.filter(x=>x.id!==markerId));
+  }catch(e){setError(e.message);}
+ }
+
  useEffect(()=>{
   let active=true;
   setMeta(null);
@@ -92,7 +195,7 @@ export default function App(){
    <div className="side-warning"><ShieldAlert size={19}/><span>Prototipo exploratorio. No apto para diagnóstico médico.</span></div>
   </aside>
   <main className="main">
-   <header className="top"><div><span className="eyebrow">VISOR MÉDICO LOCAL</span><h1>Resonancias en 3D</h1><p>Reconstruye volúmenes DICOM y explora sus cortes.</p></div><span className="local"><span className="green-dot"/>Datos locales</span></header>
+   <header className="top"><div><span className="eyebrow">RESONANCIA MAGNÉTICA · VISOR 3D</span><h1>RM Studio 3D</h1><p>Explora cada secuencia o combina capas anatómicas compatibles en un mismo espacio.</p></div><span className="local"><span className="green-dot"/>Estudio privado</span></header>
    {error&&<div className="alert error"><AlertTriangle size={18}/>{error}<button onClick={()=>setError('')}>Cerrar</button></div>}
    {notice&&<div className="alert notice"><Check size={18}/>{notice}<button onClick={()=>setNotice('')}>Cerrar</button></div>}
    <section className="panel upload">
@@ -119,27 +222,41 @@ export default function App(){
      <div className="study-actions">{selected.has_report&&<a className="secondary" href={'/api/studies/'+selected.id+'/report'}><Download size={16}/> Informe PDF</a>}
       <button className="secondary danger" onClick={remove} disabled={busy}><Trash2 size={16}/> Eliminar</button></div>
     </div>
+    <div className="view-modes" role="group" aria-label="Tipo de modelo">
+     <button type="button" className={mode==='individual'?'mode active':'mode'} onClick={()=>selectMode('individual')}>Por secuencia</button>
+     <button type="button" className={mode==='integral'?'mode active':'mode'} onClick={()=>selectMode('integral')}>Modelo integral · capas</button>
+     <span>Ambas vistas usan imágenes originales; los colores son de visualización, no detección automática.</span>
+    </div>
     <div className="viewer-layout">
-     <div className="panel series-panel"><h3><Layers size={18}/> Series disponibles</h3><p className="muted small">Elige una secuencia para reconstruirla.</p>
+     <div className="panel series-panel"><h3><Layers size={18}/> Series disponibles</h3><p className="muted small">{mode==='integral'?'Elige la serie principal del modelo.':'Elige una secuencia para reconstruirla.'}</p>
       <div className="series-list">{selected.series.map(s=><button className={'series '+(series===s.id?'active':'')} key={s.id} onClick={()=>setSeries(s.id)}>
-       <span className="series-no">{s.number}</span><span><strong>{s.description}</strong><small>{s.modality} · {s.count} imágenes</small></span>{series===s.id?<Check size={15}/>:<ChevronRight size={15}/>}
+       <span className="series-no">{s.number}</span><span><strong>{s.description}</strong><small>{s.modality} · {s.count} imágenes</small><small className="series-role">{modalityHint(s.description)}</small></span>{series===s.id?<Check size={15}/>:<ChevronRight size={15}/>}
       </button>)}</div>
      </div>
      <div className="viewers">
-      <section className="panel viewer">
-       <div className="viewer-heading"><div><h3><Box size={20}/> Volumen tridimensional</h3><p>{chosen?.description||'Selecciona una secuencia'}</p></div>{meta&&<span className="resolution">{meta.dimensions.join(' × ')} vóxeles</span>}</div>
-       {loading?<div className="placeholder"><LoaderCircle className="spin" size={30}/>Preparando volumen…</div>:meta?<VolumeViewer key={series} url={seriesUrl(selected.id,series,'volume.raw')} meta={meta}/>:<div className="placeholder"><Scan size={35}/>Selecciona una serie 3D compatible</div>}
-       {meta&&<div className="technical"><span>Spacing original: {meta.full_spacing.map(v=>v.toFixed(2)).join(' / ')} mm</span><span>Dimensiones originales: {meta.full_dimensions.join(' × ')}</span><span>Vista 3D: {meta.preview_downsample_factors.some(x=>x>1)?'reducida':'sin reducción espacial'}</span></div>}
-      </section>
+      {mode==='integral'&&meta?
+       <IntegratedStudio study={selected} series={series} meta={meta} markers={markers}/>:
+       <section className="panel viewer">
+        <div className="viewer-heading"><div><h3><Box size={20}/> {mode==='integral'?'Selecciona una serie anatómica':'Volumen tridimensional por secuencia'}</h3><p>{chosen?.description||'Selecciona una secuencia'}</p></div>{meta&&<span className="resolution">{meta.dimensions.join(' × ')} vóxeles</span>}</div>
+        {mode==='individual'&&<div className="single-colors"><label>Color de los vóxeles visibles <ColorPicker value={singleColor} onChange={setSingleColor}/></label>
+         <label>Opacidad <input type="range" min="0" max="100" value={Math.round(singleOpacity*100)} onChange={e=>setSingleOpacity(Number(e.target.value)/100)}/></label></div>}
+        {loading?<div className="placeholder"><LoaderCircle className="spin" size={30}/>Preparando volumen…</div>:meta?
+         <VolumeViewer layers={[{id:series,url:seriesUrl(selected.id,series,'volume.raw'),meta,color:singleColor,opacity:singleOpacity,visible:true}]} markers={markers}/>:
+         <div className="placeholder"><Scan size={35}/>Selecciona una serie 3D compatible</div>}
+        {meta&&<div className="technical"><span>Spacing original: {meta.full_spacing.map(v=>v.toFixed(2)).join(' / ')} mm</span><span>Dimensiones originales: {meta.full_dimensions.join(' × ')}</span><span>Vista 3D: {meta.preview_downsample_factors.some(x=>x>1)?'reducida':'sin reducción espacial'}</span></div>}
+       </section>}
       {meta&&<section className="panel slices"><h3><Scan size={18}/> Cortes del volumen</h3><p className="muted small">Cortes por eje del volumen; no equivalen necesariamente a planos anatómicos canónicos.</p>
-       <div className="slice-grid"><Slice key={series+'-z'} title="Eje Z" plane="axial" count={meta.full_dimensions[2]} study={selected.id} series={series}/>
-        <Slice key={series+'-y'} title="Eje Y" plane="coronal" count={meta.full_dimensions[1]} study={selected.id} series={series}/>
-        <Slice key={series+'-x'} title="Eje X" plane="sagital" count={meta.full_dimensions[0]} study={selected.id} series={series}/>
+       <div className="slice-grid"><Slice key={series+'-z'} title="Eje Z" plane="axial" count={meta.full_dimensions[2]} study={selected.id} series={series} meta={meta} markers={markers} marking={marking} onMark={markPoint}/>
+        <Slice key={series+'-y'} title="Eje Y" plane="coronal" count={meta.full_dimensions[1]} study={selected.id} series={series} meta={meta} markers={markers} marking={marking} onMark={markPoint}/>
+        <Slice key={series+'-x'} title="Eje X" plane="sagital" count={meta.full_dimensions[0]} study={selected.id} series={series} meta={meta} markers={markers} marking={marking} onMark={markPoint}/>
        </div></section>}
+      {meta&&<MarkerControls markers={markers} marking={marking} setMarking={setMarking}
+       category={markerCategory} setCategory={setMarkerCategory} color={markerColor} setColor={setMarkerColor}
+       label={markerLabel} setLabel={setMarkerLabel} radius={markerRadius} setRadius={setMarkerRadius} onDelete={deleteMarker}/>}
      </div>
     </div>
    </>}
-   <footer><AlertTriangle size={17}/> Vista volumétrica normalizada para exploración. No identifica tumores ni reemplaza la lectura radiológica.</footer>
+   <footer><AlertTriangle size={17}/> La visualización con colores no constituye segmentación automática ni diagnóstico. Los marcadores son referencias manuales, no mediciones de tumores. Para unir series con precisión se necesita registro y validación clínica.</footer>
   </main>
  </div>;
 }
