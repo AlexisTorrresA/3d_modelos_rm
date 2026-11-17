@@ -10,12 +10,16 @@ export const PALETTE=[
 ];
 
 export const CATEGORY_OPTIONS=[
-  {id:'lesion',label:'Lesión / tumor (manual)',color:'#ff657e'},
-  {id:'brain',label:'Referencia del cerebro (manual)',color:'#f2c69f'},
-  {id:'ventricles',label:'Ventrículos (manual)',color:'#64c5ed'},
-  {id:'spinal_cord',label:'Médula (manual)',color:'#f9dc69'},
-  {id:'vessels',label:'Vasos (manual)',color:'#ec91b7'},
-  {id:'other',label:'Otra estructura (manual)',color:'#a1d896'},
+  {id:'brain',label:'Cerebro / tejido',color:'#f3d1a9'},
+  {id:'lesion',label:'Tumores / lesiones',color:'#ff657e'},
+  {id:'ventricles',label:'Sistema ventricular',color:'#68c7f5'},
+  {id:'brainstem',label:'Tronco encefálico',color:'#54d4a4'},
+  {id:'cerebellum',label:'Cerebelo',color:'#ffb37b'},
+  {id:'spinal_cord',label:'Médula / región espinal',color:'#f4d576'},
+  {id:'nerves',label:'Nervios / tractos',color:'#ab9cff'},
+  {id:'vessels',label:'Vasos sanguíneos',color:'#ee96b9'},
+  {id:'leptomeningeal',label:'Meninges / diseminación',color:'#ec9dde'},
+  {id:'other',label:'Otra estructura',color:'#a1d896'},
 ];
 
 export function isDiffusion(description=''){
