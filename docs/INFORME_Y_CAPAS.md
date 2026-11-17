@@ -15,3 +15,6 @@ Los hallazgos extraídos son coincidencias textuales y no diagnósticos. Las neg
 El PDF permanece en la base PostgreSQL del Y700; no hay llamadas a modelos externos ni publicación de material médico en el GitHub público. El PDF escaneado sin capa de texto muestra aviso de OCR pendiente. Reanalizar reinicia las revisiones; reemplazar el PDF invalida el análisis anterior. El login protege los endpoints.
 
 Las funcionalidades del visor no sustituyen lectura radiológica, segmentación validada ni dictamen médico.
+
+## PDF escaneado: OCR local
+Si el informe no contiene texto seleccionable, el backend utiliza Tesseract en español e inglés y Poppler, de forma local y limitada (hasta 12 páginas, sin tráfico externo). **La transcripción puede contener errores**, incluida la palabra «no» en frases negativas. Cada mención continúa pendiente de revisión humana y no coloca lesiones automáticamente en coordenadas DICOM.

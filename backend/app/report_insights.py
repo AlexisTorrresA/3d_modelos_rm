@@ -83,6 +83,46 @@ def extract_pdf_text(content: bytes):
         raise HTTPException(422,"No se pudo extraer texto del PDF") from exc
 
 
+
+def ocr_scanned_pdf(content:bytes, page_count:int)->list[tuple[int,str]]:
+    """Local fallback for image-only reports. No network or patient logging.
+
+    Keep OCR bounded to avoid large PDF CPU abuse. The extracted words are
+    unverified: OCR errors can change negations, measurements or names.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    if not (shutil.which("pdftoppm") and shutil.which("tesseract")):
+        return []
+    result=[]
+    pages=min(page_count,12)
+    with tempfile.TemporaryDirectory(prefix="rm-report-") as folder:
+        folder=Path(folder)
+        source=folder/"input.pdf"
+        source.write_bytes(content)
+        for page in range(1,pages+1):
+            target=folder/"rendered"
+            try:
+                subprocess.run([
+                    "pdftoppm","-f",str(page),"-l",str(page),
+                    "-singlefile","-r","150","-gray","-png",
+                    str(source),str(target)
+                ],timeout=40,check=True,capture_output=True)
+                image=target.with_suffix(".png")
+                ocr=subprocess.run([
+                    "tesseract",str(image),"stdout","-l","spa+eng",
+                    "--psm","6"
+                ],timeout=45,check=True,capture_output=True,text=True)
+                result.append((page,ocr.stdout[:25000]))
+                image.unlink(missing_ok=True)
+            except (subprocess.TimeoutExpired,subprocess.CalledProcessError,OSError):
+                result.append((page,""))
+    return result
+
+
 def detect_mentions(pages: list[tuple[int,str]]) -> list[dict]:
     results=[]
     seen=set()
@@ -180,14 +220,21 @@ def analyze(study_id:str):
         raise HTTPException(413,"Informe demasiado grande")
     pages=extract_pdf_text(content)
     text_len=sum(len(text.strip()) for _,text in pages)
+    method="local_keyword_review"
+    if text_len<30:
+        recognized=ocr_scanned_pdf(content,len(pages))
+        if recognized:
+            pages=recognized
+            text_len=sum(len(text.strip()) for _,text in pages)
+            method="local_ocr_tesseract"
     result={
         "status":"analyzed" if text_len else "no_text",
-        "method":"local_keyword_review",
+        "method":method,
         "pages":len(pages),
         "analyzed_at":datetime.now(timezone.utc).isoformat(),
         "source_sha256":hashlib.sha256(content).hexdigest(),
         "findings":detect_mentions(pages) if text_len else [],
-        "notice":("Menciones textuales para revisión: no son diagnósticos, máscaras ni coordenadas."
+        "notice":("Menciones para revisión: no son diagnósticos, máscaras ni coordenadas. El OCR puede equivocarse, incluso al leer negaciones."
                   if text_len else
                   "El PDF no contiene texto extraíble; para un escaneo se necesita OCR local."),
     }
