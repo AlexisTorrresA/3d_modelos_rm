@@ -128,3 +128,62 @@
 
 .report-region{font-size:10px;line-height:1.5;color:#bad4e6;background:#102c3d;padding:7px 9px;border-radius:7px;margin:0 0 10px}
 .report-region small{display:block;color:#91aabb;font-size:10px;margin-top:3px}
+
+/* DICOM patient-specific model / 3D atlas comparison */
+.patient-mode{display:grid;gap:16px;min-width:0}
+.patient-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid #3b687d;border-radius:15px;padding:20px;background:linear-gradient(115deg,#17374c,#0d1829)}
+.patient-hero h3{display:flex;gap:10px;align-items:center;margin:8px 0 9px;font-size:20px}
+.patient-hero h3 svg{color:#61d9ee}.patient-hero p{color:#adc6d6;line-height:1.6;font-size:12px;max-width:780px;margin:0}
+.patient-hero-numbers{display:grid;grid-template-columns:auto auto;gap:4px 10px;min-width:150px;text-align:right}
+.patient-hero-numbers strong{color:#94e7f3;font-size:21px}.patient-hero-numbers span{color:#9cb7c8;font-size:10px}
+.patient-tabs,.patient-focus{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.patient-tabs{border:1px solid #31516b;background:#102235;padding:8px;border-radius:11px}
+.patient-tabs button,.patient-focus button{display:flex;gap:8px;align-items:center;background:#1c3449;color:#bfd2e2;border:1px solid transparent;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:700}
+.patient-tabs button.selected,.patient-focus button.selected{background:#15687a;color:#f1feff;border-color:#55cedc}
+.patient-tabs span{font-size:10px;color:#a6bdcc;margin-left:auto}
+.patient-sources{border:1px solid #34516a;background:#12283c;border-radius:12px;padding:15px}
+.patient-section-title,.patient-provenance-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.patient-section-title h4,.patient-provenance-head h4{display:flex;gap:8px;align-items:center;font-size:13px;margin:0}
+.patient-section-title span,.patient-provenance-head span{color:#a4bdcf;font-size:10px}
+.patient-focus{margin:12px 0}.patient-source-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:9px}
+.patient-source{display:flex;align-items:center;gap:9px;background:#0e2031;border:1px solid #2c4c62;border-radius:9px;padding:10px;min-width:0}
+.patient-source input[type=color]{width:32px;height:34px;background:#17354b;border:1px solid #42647d;border-radius:7px;flex-shrink:0}
+.patient-source-title{display:grid;gap:3px;flex:1;min-width:0}.patient-source-title strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.patient-source-title small{font-size:9px;color:#9aafbe;line-height:1.4}
+.patient-source label{display:grid;gap:3px;font-size:9px;color:#a7bccc}
+.patient-source input[type=range]{width:72px;accent-color:#5ed2e5}
+.patient-remove{border:0;background:transparent;color:#e0b5ba;font-size:10px;padding:5px}
+.patient-add{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.patient-add select{flex:1;min-width:220px;max-width:100%;background:#15354d;border:1px solid #38617e;border-radius:8px;color:#ecf5fc;padding:10px;font-size:11px}
+.patient-stage,.patient-atlas-area{border:1px solid #33556d;border-radius:14px;overflow:hidden;background:#070e19}
+.patient-stage-bar,.patient-stage-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 17px;background:#112136;color:#aac6d7;font-size:11px}
+.patient-stage-bar>span{display:flex;gap:7px;align-items:center}.patient-stage-bar label{display:flex;align-items:center;gap:6px}
+.patient-stage-bar input{accent-color:#5ed5df}.stage-light{width:8px;height:8px;border-radius:50%;background:#65ddbf}
+.patient-stage .volume{height:min(65vh,680px);min-height:480px;border-radius:0;background:#050b13}
+.patient-stage-foot{border-top:1px solid #2a475f;color:#8daabc;font-size:10px}
+.patient-stage-loading{min-height:480px;display:flex;align-items:center;justify-content:center;gap:12px;color:#97bad2;font-size:12px}
+.patient-caution{display:flex;align-items:flex-start;gap:9px;color:#d6bf96;background:#24271e;border:1px solid #64573a;border-radius:11px;padding:13px;font-size:11px;line-height:1.6;margin:0}
+.patient-caution svg{flex-shrink:0}.patient-atlas-area{display:grid;grid-template-columns:260px minmax(0,1fr)}
+.patient-atlas-side{padding:16px;background:#0d1d2d;max-height:750px;overflow:auto;border-right:1px solid #2b455b}
+.patient-atlas-side h4{font-size:14px;margin:0 0 8px}.patient-atlas-side p,.patient-atlas-side>small{font-size:11px;color:#a4bfd1;line-height:1.5}
+.patient-atlas-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:13px 0}
+.patient-atlas-controls .secondary{font-size:10px;padding:8px}.patient-atlas-controls label{font-size:11px;color:#bfd7e8}
+.patient-atlas-layers{display:grid;gap:4px}.patient-atlas-layer{display:flex;gap:8px;align-items:center;border-bottom:1px solid #28455b;padding:8px 0}
+.patient-atlas-layer>label{display:flex;align-items:center;gap:7px;flex:1;min-width:0;font-size:11px}
+.patient-atlas-layer>label span{display:grid;gap:4px}.patient-atlas-layer small{font-size:9px;color:#90acbf}
+.patient-atlas-layer input[type=range]{width:64px;accent-color:#65cde0}.patient-atlas-layer input[type=checkbox]{accent-color:#5dd4e6}
+.patient-atlas-stage{min-height:660px;position:relative}.atlas-canvas{width:100%;height:100%;min-height:660px;overflow:hidden;position:relative}
+.atlas-canvas canvas{display:block}.atlas-label,.atlas-finding-tag{font-size:10px;background:#0c2235e9;color:#f2f6fd;border:1px solid #4b7894;border-radius:9px;padding:5px 8px;white-space:nowrap;pointer-events:none}
+.atlas-finding-tag{background:#4b1d2ede;color:#ffc2c9;border-color:#ef7086}.atlas-finding-tag.active{border-width:2px}
+.atlas-loading-notice,.patient-atlas-disclaimer{position:absolute;color:#d5e6ef;font-size:11px;background:#09182bdf;padding:10px;border:1px solid #34556b;border-radius:10px;pointer-events:none}
+.atlas-loading-notice{top:15px;left:15px;display:flex;gap:8px;align-items:center}
+.patient-atlas-disclaimer{bottom:11px;left:11px;right:11px;text-align:center;line-height:1.5;color:#e3c8a6}
+.patient-provenance{padding:17px}.patient-provenance-head h4{margin:0 0 12px}
+.patient-evidence-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px}
+.patient-evidence-list button{display:flex;align-items:flex-start;gap:8px;text-align:left;padding:10px;border-radius:9px;border:1px solid #36566c;background:#12273a;color:#f0f7ff}
+.patient-evidence-list button.selected{background:#194258;border-color:#5addf0}
+.patient-evidence-color{width:10px;height:10px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.patient-evidence-list button span:last-child{display:grid;gap:4px}.patient-evidence-list strong{font-size:11px}.patient-evidence-list small{font-size:10px;color:#9ebccc}
+.patient-hint{font-size:11px;color:#a9c8dc;background:#152b3e;border-radius:8px;padding:11px}
+@media(max-width:1100px){.patient-atlas-area{grid-template-columns:220px minmax(0,1fr)}.patient-tabs span{width:100%;margin-left:0}}
+@media(max-width:760px){.patient-source-list{grid-template-columns:1fr}.patient-atlas-area{grid-template-columns:1fr}.patient-atlas-side{max-height:330px;border-right:0;border-bottom:1px solid #34556b}.patient-hero{flex-wrap:wrap}.patient-stage .volume{height:55vh;min-height:370px}}
