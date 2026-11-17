@@ -87,6 +87,13 @@ def initialize():
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS rm_masks_study_idx ON rm_masks(study_id)")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS rm_report_analysis (
+                study_id UUID PRIMARY KEY REFERENCES rm_studies(id) ON DELETE CASCADE,
+                result JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+        """)
 
 
 def persist(study_id: str, payload: dict, root: Path):
@@ -195,3 +202,46 @@ def delete(study_id: str):
         return
     with connect() as conn:
         conn.execute("DELETE FROM rm_studies WHERE id=%s",(study_id,))
+
+
+def replace_report(study_id: str, content: bytes):
+    """Atomically replace the private PDF and its analysis without touching DICOMs."""
+    from pathlib import Path
+    import io
+    import uuid
+    from fastapi import HTTPException
+
+    try:
+        uuid.UUID(study_id)
+    except (ValueError, TypeError):
+        raise HTTPException(404,"Estudio no encontrado")
+    with connect() as conn:
+        found=conn.execute(
+            "SELECT payload FROM rm_studies WHERE id=%s FOR UPDATE",(study_id,)
+        ).fetchone()
+        if not found:
+            raise HTTPException(404,"Estudio no encontrado")
+        payload=found[0]
+        payload["has_report"]=True
+        conn.execute(
+            "UPDATE rm_studies SET payload=%s WHERE id=%s",
+            (Jsonb(payload),study_id)
+        )
+        conn.execute(
+            "DELETE FROM rm_assets WHERE study_id=%s AND file_key='report.pdf'",
+            (study_id,),
+        )
+        conn.execute(
+            """INSERT INTO rm_assets(study_id,file_key,size_bytes,sha256)
+               VALUES(%s,'report.pdf',%s,%s)""",
+            (study_id,len(content),hashlib.sha256(content).hexdigest()),
+        )
+        for index,offset in enumerate(range(0,len(content),CHUNK_SIZE)):
+            conn.execute(
+                """INSERT INTO rm_asset_chunks(study_id,file_key,ordinal,data)
+                   VALUES(%s,'report.pdf',%s,%s)""",
+                (study_id,index,content[offset:offset+CHUNK_SIZE]),
+            )
+        conn.execute(
+            "DELETE FROM rm_report_analysis WHERE study_id=%s",(study_id,)
+        )

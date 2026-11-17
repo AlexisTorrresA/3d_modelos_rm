@@ -17,7 +17,7 @@ from .dicom_service import find_series
 from .storage import load_study, study_path
 
 router = APIRouter()
-CATEGORIES = {"lesion", "brain", "ventricles", "spinal_cord", "vessels", "other"}
+CATEGORIES = {"lesion", "brain", "ventricles", "spinal_cord", "vessels", "brainstem", "cerebellum", "leptomeningeal", "nerves", "other"}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 

@@ -23,7 +23,7 @@ from .volume import ensure_volume
 
 router = APIRouter()
 MAX_MASK_SIZE=64*1024*1024
-CATEGORIES={"lesion","brain","ventricles","spinal_cord","vessels","other"}
+CATEGORIES={"lesion","brain","ventricles","spinal_cord","vessels","brainstem","cerebellum","leptomeningeal","nerves","other"}
 HEX=re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
