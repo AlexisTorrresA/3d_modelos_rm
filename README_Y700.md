@@ -70,3 +70,8 @@ Para no mostrar tejidos incorrectos, exige coincidencia de dimensiones y geometr
 
 El archivo cargado **no se segmenta automáticamente**: el modelo solo visualiza una segmentación ya existente. Los colores, nombres de lesiones y marcadores de la interfaz no son un diagnóstico.
 
+
+
+## Tercera vista: RM real + atlas independiente
+
+Consulta [docs/RECONSTRUCCION_REAL.md](docs/RECONSTRUCCION_REAL.md) para el modelo específico del estudio, la selección geométrica de series, la comparación educativa separada y las limitaciones de segmentación.
