@@ -72,6 +72,21 @@ def initialize():
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS rm_annotations_study_idx ON rm_annotations(study_id)")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS rm_masks (
+                id UUID PRIMARY KEY,
+                study_id UUID NOT NULL REFERENCES rm_studies(id) ON DELETE CASCADE,
+                series_id UUID NOT NULL,
+                label TEXT NOT NULL,
+                category TEXT NOT NULL,
+                color TEXT NOT NULL,
+                meta JSONB NOT NULL,
+                preview_zlib BYTEA NOT NULL,
+                source_file BYTEA NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS rm_masks_study_idx ON rm_masks(study_id)")
 
 
 def persist(study_id: str, payload: dict, root: Path):
