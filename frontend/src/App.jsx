@@ -3,6 +3,8 @@ import {Activity,AlertTriangle,Box,Check,ChevronRight,Disc3,Download,FileText,Fo
 import VolumeViewer from './VolumeViewer.jsx';
 import IntegratedStudio, {ColorPicker} from './IntegratedStudio.jsx';
 import MaskControls from './MaskControls.jsx';
+import ReportInsights from './ReportInsights.jsx';
+import AnatomyLayers from './AnatomyLayers.jsx';
 import {CATEGORY_OPTIONS, chooseAnatomical, isDiffusion, modalityHint, toPatient, toVoxel, geometryCompatible} from './geometry.js';
 
 async function api(url,options){
@@ -93,6 +95,8 @@ export default function App(){
  const [singleOpacity,setSingleOpacity]=useState(0.8);
  const [markers,setMarkers]=useState([]);
  const [masks,setMasks]=useState([]);
+ const [reportAnalysis,setReportAnalysis]=useState(null);
+ const [visibleCategories,setVisibleCategories]=useState({});
  const [marking,setMarking]=useState(false);
  const [markerCategory,setMarkerCategory]=useState('lesion');
  const [markerColor,setMarkerColor]=useState('#ff657e');
@@ -102,6 +106,7 @@ export default function App(){
  useEffect(()=>{refresh().then(data=>{if(data.length)setSelected(data[0]);}).catch(e=>setError(e.message));},[refresh]);
  useEffect(()=>{
   setSeries(selected?.series?.[0]?.id||null);setMarking(false);setMarkers([]);setMasks([]);
+  setReportAnalysis(null);setVisibleCategories({});
  },[selected?.id]);
  useEffect(()=>{
   let alive=true;
@@ -111,6 +116,9 @@ export default function App(){
    .catch(e=>{if(alive)setError(e.message);});
   api('/api/studies/'+selected.id+'/masks')
    .then(items=>{if(alive)setMasks(items.map(m=>({...m,opacity:.8,visible:true})));})
+   .catch(e=>{if(alive)setError(e.message);});
+  api('/api/studies/'+selected.id+'/report/analysis')
+   .then(result=>{if(alive)setReportAnalysis(result);})
    .catch(e=>{if(alive)setError(e.message);});
   return()=>{alive=false;};
  },[selected?.id]);
@@ -190,10 +198,13 @@ export default function App(){
   catch(e){setError(e.message);}finally{setBusy(false);}
  }
  const chosen=selected?.series?.find(s=>s.id===series);
+ const renderedMarkers=markers.filter(m=>visibleCategories[m.category]!==false);
+ const reportUpdated=()=>{setSelected(current=>current?{...current,has_report:true}:current);
+  setStudies(current=>current.map(s=>s.id===selected?.id?{...s,has_report:true}:s));};
  const layersMasks=meta&&selected?masks.filter(m=>geometryCompatible(meta,m.preview_meta)).map(m=>({
   ...m,meta:m.preview_meta,
   url:'/api/studies/'+selected.id+'/masks/'+m.id+'/volume.raw',
-  opacity:m.opacity??.8,visible:m.visible!==false,
+  opacity:m.opacity??.8,visible:m.visible!==false && visibleCategories[m.category]!==false,
  })):[];
  return <div className="layout">
   <aside className="sidebar">
@@ -235,8 +246,10 @@ export default function App(){
     <div className="view-modes" role="group" aria-label="Tipo de modelo">
      <button type="button" className={mode==='individual'?'mode active':'mode'} onClick={()=>selectMode('individual')}>Por secuencia</button>
      <button type="button" className={mode==='integral'?'mode active':'mode'} onClick={()=>selectMode('integral')}>Modelo integral · capas</button>
-     <span>Ambas vistas usan imágenes originales; los colores son de visualización, no detección automática.</span>
+     <span>Las estructuras con forma real requieren máscaras NIfTI compatibles. No se inventan tumores a partir de texto.</span>
     </div>
+    {mode==='integral'&&<ReportInsights study={selected} masks={masks}
+      analysis={reportAnalysis} onAnalysis={setReportAnalysis} onReportUpload={reportUpdated}/>}
     <div className="viewer-layout">
      <div className="panel series-panel"><h3><Layers size={18}/> Series disponibles</h3><p className="muted small">{mode==='integral'?'Elige la serie principal del modelo.':'Elige una secuencia para reconstruirla.'}</p>
       <div className="series-list">{selected.series.map(s=><button className={'series '+(series===s.id?'active':'')} key={s.id} onClick={()=>setSeries(s.id)}>
@@ -244,21 +257,24 @@ export default function App(){
       </button>)}</div>
      </div>
      <div className="viewers">
+      {mode==='integral'&&meta&&<AnatomyLayers study={selected} meta={meta}
+       masks={masks} setMasks={setMasks} markers={markers}
+       analysis={reportAnalysis} visibility={visibleCategories} onVisibility={setVisibleCategories}/>}
       {mode==='integral'&&meta?
-       <IntegratedStudio study={selected} series={series} meta={meta} markers={markers} masks={layersMasks}/>:
+       <IntegratedStudio study={selected} series={series} meta={meta} markers={renderedMarkers} masks={layersMasks}/>:
        <section className="panel viewer">
         <div className="viewer-heading"><div><h3><Box size={20}/> {mode==='integral'?'Selecciona una serie anatómica':'Volumen tridimensional por secuencia'}</h3><p>{chosen?.description||'Selecciona una secuencia'}</p></div>{meta&&<span className="resolution">{meta.dimensions.join(' × ')} vóxeles</span>}</div>
         {mode==='individual'&&<div className="single-colors"><label>Color de los vóxeles visibles <ColorPicker value={singleColor} onChange={setSingleColor}/></label>
          <label>Opacidad <input type="range" min="0" max="100" value={Math.round(singleOpacity*100)} onChange={e=>setSingleOpacity(Number(e.target.value)/100)}/></label></div>}
         {loading?<div className="placeholder"><LoaderCircle className="spin" size={30}/>Preparando volumen…</div>:meta?
-         <VolumeViewer layers={[{id:series,url:seriesUrl(selected.id,series,'volume.raw'),meta,color:singleColor,opacity:singleOpacity,visible:true}]} markers={markers} masks={layersMasks}/>:
+         <VolumeViewer layers={[{id:series,url:seriesUrl(selected.id,series,'volume.raw'),meta,color:singleColor,opacity:singleOpacity,visible:true}]} markers={renderedMarkers} masks={layersMasks}/>:
          <div className="placeholder"><Scan size={35}/>Selecciona una serie 3D compatible</div>}
         {meta&&<div className="technical"><span>Spacing original: {meta.full_spacing.map(v=>v.toFixed(2)).join(' / ')} mm</span><span>Dimensiones originales: {meta.full_dimensions.join(' × ')}</span><span>Vista 3D: {meta.preview_downsample_factors.some(x=>x>1)?'reducida':'sin reducción espacial'}</span></div>}
        </section>}
       {meta&&<section className="panel slices"><h3><Scan size={18}/> Cortes del volumen</h3><p className="muted small">Cortes por eje del volumen; no equivalen necesariamente a planos anatómicos canónicos.</p>
-       <div className="slice-grid"><Slice key={series+'-z'} title="Eje Z" plane="axial" count={meta.full_dimensions[2]} study={selected.id} series={series} meta={meta} markers={markers} marking={marking} onMark={markPoint}/>
-        <Slice key={series+'-y'} title="Eje Y" plane="coronal" count={meta.full_dimensions[1]} study={selected.id} series={series} meta={meta} markers={markers} marking={marking} onMark={markPoint}/>
-        <Slice key={series+'-x'} title="Eje X" plane="sagital" count={meta.full_dimensions[0]} study={selected.id} series={series} meta={meta} markers={markers} marking={marking} onMark={markPoint}/>
+       <div className="slice-grid"><Slice key={series+'-z'} title="Eje Z" plane="axial" count={meta.full_dimensions[2]} study={selected.id} series={series} meta={meta} markers={renderedMarkers} marking={marking} onMark={markPoint}/>
+        <Slice key={series+'-y'} title="Eje Y" plane="coronal" count={meta.full_dimensions[1]} study={selected.id} series={series} meta={meta} markers={renderedMarkers} marking={marking} onMark={markPoint}/>
+        <Slice key={series+'-x'} title="Eje X" plane="sagital" count={meta.full_dimensions[0]} study={selected.id} series={series} meta={meta} markers={renderedMarkers} marking={marking} onMark={markPoint}/>
        </div></section>}
       {meta&&<MarkerControls markers={markers} marking={marking} setMarking={setMarking}
        category={markerCategory} setCategory={setMarkerCategory} color={markerColor} setColor={setMarkerColor}
