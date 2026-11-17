@@ -63,7 +63,7 @@ def score(series:dict):
     name=series.get("description","").lower()
     n=series.get("count",0)
     rank=0
-    if "3d_brain" in name: rank+=180
+    if "3d_brain" in name: rank+=260
     elif "3d_tfe" in name: rank+=115
     elif 'b_ffe_sag' in name:rank+=95
     if 't1w_3d_tfe' in name:rank+=65
