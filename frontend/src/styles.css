@@ -46,3 +46,6 @@
 .slice-marker{position:absolute;transform:translate(-50%,-50%);border:2px solid;width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 2px #09121f;background:#ffffff13;pointer-events:none}
 @media(max-width:1000px){.marker-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.fusion-layer{gap:7px}.fusion-select{max-width:100%}}
 @media(max-width:700px){.view-modes>span{width:100%;margin-left:0}.marker-heading{align-items:stretch;flex-direction:column}.marker-fields{grid-template-columns:1fr 1fr}.layer-names{flex-basis:100%}.slice-image-frame img{max-height:225px}}
+
+.fusion-add{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;border:1px dashed #376079;border-radius:9px}
+.fusion-add .fusion-select{max-width:420px;min-width:200px;flex:1}
