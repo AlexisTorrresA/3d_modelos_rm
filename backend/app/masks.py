@@ -33,6 +33,7 @@ def metadata(entry: dict):
     )}
     out["source_type"]=entry.get("source_type","user_uploaded")
     out["review_status"]=entry.get("review_status","unverified")
+    out["revision"]=entry.get("revision",1)
     return out
 
 
@@ -148,7 +149,7 @@ async def add_mask(
             "preview_meta":{key:meta[key] for key in (
                 "dimensions","spacing","origin","direction",
                 "full_dimensions","full_spacing","full_origin","full_direction",
-                "study_reference","frame_reference"
+                "study_reference","frame_reference","preview_downsample_factors"
             )},
             "created_at":datetime.now(timezone.utc).isoformat(),
         }

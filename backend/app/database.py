@@ -88,6 +88,20 @@ def initialize():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS rm_masks_study_idx ON rm_masks(study_id)")
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS rm_mask_versions (
+                mask_id UUID NOT NULL REFERENCES rm_masks(id) ON DELETE CASCADE,
+                study_id UUID NOT NULL REFERENCES rm_studies(id) ON DELETE CASCADE,
+                revision INTEGER NOT NULL,
+                meta JSONB NOT NULL,
+                preview_zlib BYTEA NOT NULL,
+                source_file BYTEA NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                PRIMARY KEY(mask_id, revision)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS rm_mask_versions_study_idx ON rm_mask_versions(study_id)")
+
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS rm_report_analysis (
                 study_id UUID PRIMARY KEY REFERENCES rm_studies(id) ON DELETE CASCADE,
                 result JSONB NOT NULL,

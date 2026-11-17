@@ -6,6 +6,7 @@ import MaskControls from './MaskControls.jsx';
 import ReportInsights from './ReportInsights.jsx';
 import AnatomyLayers from './AnatomyLayers.jsx';
 import PatientReconstruction from './PatientReconstruction.jsx';
+import SegmentationStudio from './SegmentationStudio.jsx';
 import {CATEGORY_OPTIONS, chooseAnatomical, isDiffusion, modalityHint, toPatient, toVoxel, geometryCompatible} from './geometry.js';
 
 async function api(url,options){
@@ -248,13 +249,17 @@ export default function App(){
      <button type="button" className={mode==='individual'?'mode active':'mode'} onClick={()=>selectMode('individual')}>Por secuencia</button>
      <button type="button" className={mode==='integral'?'mode active':'mode'} onClick={()=>selectMode('integral')}>Modelo integral · capas</button>
      <button type="button" className={mode==='patient'?'mode active':'mode'} onClick={()=>selectMode('patient')}>Modelo completo · RM real</button>
+     <button type="button" className={mode==='segmentation'?'mode active':'mode'} onClick={()=>selectMode('segmentation')}>
+      <Scan size={15}/> Segmentación precisa desde cortes
+     </button>
      <span>La nueva vista utiliza los cortes reales. Un atlas independiente se ofrece solo para comparar anatomía.</span>
     </div>
-    {(mode==='integral'||mode==='patient')&&<ReportInsights study={selected} masks={masks}
+    {(mode==='integral'||mode==='patient'||mode==='segmentation')&&<ReportInsights study={selected} masks={masks}
       analysis={reportAnalysis} onAnalysis={setReportAnalysis} onReportUpload={reportUpdated}/>}
     {mode==='patient'&&<PatientReconstruction study={selected} masks={masks}
       markers={renderedMarkers} analysis={reportAnalysis}/>}
-    {mode!=='patient'&&<div className="viewer-layout">
+    {mode==='segmentation'&&<SegmentationStudio study={selected} masks={masks} setMasks={setMasks}/>}
+    {mode!=='patient'&&mode!=='segmentation'&&<div className="viewer-layout">
      <div className="panel series-panel"><h3><Layers size={18}/> Series disponibles</h3><p className="muted small">{mode==='integral'?'Elige la serie principal del modelo.':'Elige una secuencia para reconstruirla.'}</p>
       <div className="series-list">{selected.series.map(s=><button className={'series '+(series===s.id?'active':'')} key={s.id} onClick={()=>setSeries(s.id)}>
        <span className="series-no">{s.number}</span><span><strong>{s.description}</strong><small>{s.modality} · {s.count} imágenes</small><small className="series-role">{modalityHint(s.description)}</small></span>{series===s.id?<Check size={15}/>:<ChevronRight size={15}/>}
@@ -287,7 +292,7 @@ export default function App(){
      </div>
     </div>}
    </>}
-   <footer><AlertTriangle size={17}/> La visualización con colores no constituye segmentación automática ni diagnóstico. Los marcadores son referencias manuales, no mediciones de tumores. Para unir series con precisión se necesita registro y validación clínica.</footer>
+   <footer><AlertTriangle size={17}/> Las máscaras y mallas son herramientas experimentales que requieren revisión. La visualización con colores no constituye segmentación automática ni diagnóstico. Los marcadores son referencias manuales, no mediciones de tumores. Para unir series con precisión se necesita registro y validación clínica.</footer>
   </main>
  </div>;
 }

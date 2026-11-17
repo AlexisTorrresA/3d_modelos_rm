@@ -27,7 +27,7 @@ jobs:
       - name: Test frontend build
         working-directory: frontend
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npm test
           npm run build
       - uses: docker/setup-buildx-action@v3

@@ -75,3 +75,7 @@ El archivo cargado **no se segmenta automáticamente**: el modelo solo visualiza
 ## Tercera vista: RM real + atlas independiente
 
 Consulta [docs/RECONSTRUCCION_REAL.md](docs/RECONSTRUCCION_REAL.md) para el modelo específico del estudio, la selección geométrica de series, la comparación educativa separada y las limitaciones de segmentación.
+
+## Módulo de segmentación precisa desde cortes
+
+El nuevo modo permite pintar sobre los ejes originales, interpolar cortes, guardar revisiones en PostgreSQL y generar superficies GLB, OBJ y STL. Consulta [docs/SEGMENTACION_DESDE_CORTES.md](docs/SEGMENTACION_DESDE_CORTES.md). No detecta tumores ni diseminación automáticamente: es un editor experimental que requiere revisar y validar las máscaras.

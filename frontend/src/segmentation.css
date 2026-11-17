@@ -1,0 +1,110 @@
+/* High-resolution, voxel-space DICOM segmentation workstation */
+.seg-studio{display:grid;gap:15px;min-width:0}
+.seg-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;
+  border:1px solid #45677e;background:linear-gradient(115deg,#16384b,#0c1b30 78%);
+  border-radius:14px;padding:19px 21px}
+.seg-banner h3{font-size:20px;margin:7px 0;display:flex;gap:10px;align-items:center}
+.seg-banner h3 svg{color:#66e6da}
+.seg-banner p{font-size:11px;color:#a9c7d8;max-width:750px;line-height:1.55;margin:0}
+.seg-banner-tag{border:1px solid #967453;border-radius:9px;background:#413226;color:#ffdbaf;
+  white-space:nowrap;padding:7px 10px;font-size:10px}
+.seg-working{display:flex;align-items:center;gap:9px;border-radius:9px;background:#193f45;
+  border:1px solid #3a827d;color:#bcf6ec;padding:10px 13px;font-size:12px}
+.seg-selection{background:#142b3c;border:1px solid #335468;border-radius:11px;padding:14px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.seg-selection>label{display:grid;gap:7px;font-size:11px;color:#bad6e5;flex:1;min-width:220px}
+.seg-selection select,.seg-create select,.seg-create input[type=text],.seg-create input:not([type]),
+.seg-action-row select,.seg-action-row input[type=number]{border:1px solid #3b657e;
+  background:#15354b;color:#eaf7fc;border-radius:8px;padding:10px;font-size:11px;max-width:100%}
+.seg-selection small{font-size:10px;color:#9db7c9;flex:1;max-width:500px;line-height:1.5}
+.seg-mask-panel,.seg-editor-toolbar,.seg-secondary-tools,.seg-mesh-section{
+  background:#142639;border:1px solid #315169;border-radius:12px;padding:15px;min-width:0}
+.seg-mask-heading,.seg-mesh-head{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.seg-mask-heading h4,.seg-mesh-head h4{font-size:13px;margin:0;display:flex;gap:8px;align-items:center}
+.seg-mask-heading span,.seg-mesh-head span{color:#9eb9cf;font-size:10px}
+.seg-create{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.seg-create label{display:grid;gap:6px;font-size:11px;color:#a9cadc;min-width:130px;flex:1}
+.seg-create label:nth-child(2){flex:2;min-width:190px}
+.seg-create input[type=color]{height:36px;width:50px;padding:3px;background:#19384a;border:1px solid #46677c;border-radius:7px}
+.seg-create .secondary{font-size:11px;white-space:nowrap;padding:10px}
+.seg-masks{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:7px;margin-top:13px}
+.seg-masks button{background:#102034;border:1px solid #34506a;color:#eaf4fe;
+  border-radius:9px;display:flex;align-items:flex-start;gap:9px;padding:11px;text-align:left;min-width:0}
+.seg-masks button.seg-mask-active{border-color:#4bd4da;background:#174054}
+.seg-masks button>span:last-child{display:grid;gap:4px;min-width:0}
+.seg-masks button strong{font-size:11px;overflow-wrap:anywhere}
+.seg-masks button small{color:#9cbbcc;font-size:9px;line-height:1.35}
+.seg-mask-color{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.seg-masks>p{font-size:11px;color:#a5bfcf}
+.seg-locked{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;
+  background:#302f28;border:1px solid #786547;border-radius:9px;padding:10px;font-size:11px;
+  line-height:1.55;color:#e5d7b7}
+.seg-locked .secondary{margin-left:auto;font-size:10px}
+.seg-editor-toolbar{display:grid;gap:12px}
+.seg-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.seg-tools button{display:flex;align-items:center;gap:7px;padding:9px 11px;
+  border:1px solid #35536c;color:#bbd2e1;background:#1b3248;border-radius:9px;font-size:11px}
+.seg-tools button.active{background:#1b6877;border-color:#60e5d7;color:white}
+.seg-tools button:disabled{opacity:.35;cursor:not-allowed}
+.seg-tool-parameters{display:flex;gap:20px;flex-wrap:wrap}
+.seg-tool-parameters label{display:grid;gap:5px;font-size:10px;color:#a2b9ce}
+.seg-tool-parameters input[type=range]{width:126px;accent-color:#5de2d3}
+.seg-polygon{display:flex;align-items:center;gap:9px;font-size:11px;color:#f2dba5;flex-wrap:wrap}
+.seg-polygon button{font-size:10px}
+.seg-three-planes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;min-width:0}
+.seg-viewport{border:1px solid #34506c;background:#102135;border-radius:11px;
+  padding:11px;min-width:0;display:grid;gap:9px;align-content:start}
+.seg-cut-header{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.seg-cut-header strong{font-size:11px}.seg-cut-header span{font-size:10px;color:#9ccbdc}
+.seg-cut-host{display:flex;justify-content:center;align-items:center;
+  min-height:260px;max-height:445px;overflow:hidden;background:#040a12;border-radius:9px;padding:6px}
+.seg-cut-frame{position:relative;display:block;max-width:100%;max-height:420px;
+  width:100%;max-width:480px;height:auto;min-width:100px;min-height:100px;touch-action:none;user-select:none}
+.seg-cut-frame img.seg-mri{display:block;position:absolute;inset:0;width:100%;height:100%;
+  object-fit:fill;image-rendering:auto;pointer-events:none}
+.seg-cut-frame img.seg-mask-img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:fill;pointer-events:none;z-index:2}
+.seg-cross{position:absolute;pointer-events:none;z-index:3;background:#70e1f48a}
+.seg-cross-h{height:1px;left:0;right:0}.seg-cross-v{width:1px;top:0;bottom:0}
+.seg-interaction{position:absolute;inset:0;width:100%;height:100%;
+  z-index:5;cursor:crosshair;touch-action:none}
+.seg-interaction.drawing{cursor:crosshair}
+.seg-slice-slider{width:100%;accent-color:#67dbe8}
+.seg-viewport>small{font-size:10px;color:#90aebe}
+.seg-coordinates{display:flex;align-items:center;gap:8px;background:#183344;border:1px solid #355a6c;
+  border-radius:8px;padding:10px 13px;font-size:11px;color:#a8cede;flex-wrap:wrap}
+.seg-secondary-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.seg-secondary-tools h4{font-size:13px;margin:0 0 7px}.seg-secondary-tools p{font-size:11px;color:#94b6cc;line-height:1.5;margin:0 0 12px}
+.seg-action-row{display:flex;flex-wrap:wrap;align-items:end;gap:8px}
+.seg-action-row label{display:grid;gap:5px;font-size:10px;color:#a4c5d5}
+.seg-action-row input[type=number]{width:82px}
+.seg-action-row select{flex:1;min-width:95px}.seg-action-row .secondary{font-size:10px;padding:10px}
+.seg-mesh-head p{font-size:11px;color:#9cbacf;margin:8px 0 0}
+.seg-mesh-view{height:490px;position:relative;border:1px solid #25465d;
+  border-radius:11px;overflow:hidden;background:#07111e}
+.seg-mesh-canvas{width:100%;height:100%}.seg-mesh-canvas canvas{display:block}
+.seg-mesh-message,.seg-mesh-tip{position:absolute;left:13px;right:13px;pointer-events:none;
+  text-align:center;border:1px solid #2b4962;border-radius:9px;
+  background:#0b1e30e0;color:#b9d6e6;padding:10px;font-size:11px}
+.seg-mesh-message{top:13px;display:flex;justify-content:center;align-items:center;gap:8px}
+.seg-mesh-tip{bottom:13px;left:25%;right:25%;font-size:10px}
+.seg-exports{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.seg-exports strong{font-size:11px;margin-right:auto}
+.seg-exports .secondary{display:flex;gap:6px;align-items:center;font-size:11px}
+.seg-warning{border:1px solid #7a5d42;background:#29261e;color:#e1c8a5;
+  border-radius:10px;padding:13px;line-height:1.65;font-size:11px;margin:0}
+@media(max-width:1240px){.seg-three-planes{grid-template-columns:repeat(2,minmax(0,1fr))}.seg-secondary-tools{grid-template-columns:1fr}}
+@media(max-width:800px){.seg-three-planes{grid-template-columns:1fr}.seg-viewport{max-width:620px}
+ .seg-cut-host{min-height:250px;max-height:460px}.seg-cut-frame{max-height:450px}
+ .seg-banner{flex-wrap:wrap}.seg-tool-parameters{gap:10px}.seg-mesh-view{height:380px}}
+
+.seg-import{margin-top:14px;border-top:1px solid #345069;padding-top:10px}
+.seg-import>summary{cursor:pointer;font-size:11px;color:#a8d7e5;padding:9px 0}
+.seg-import .mask-panel{margin-top:10px}
+
+.seg-mesh-legend{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.seg-mesh-legend button{display:flex;align-items:center;gap:7px;background:#132c3e;
+  border:1px solid #3f627c;border-radius:7px;color:#bedae9;padding:8px;font-size:10px}
+.seg-mesh-legend button.off{opacity:.5;text-decoration:line-through}
+.seg-mesh-legend button>span{width:10px;height:10px;border-radius:50%;flex-shrink:0}

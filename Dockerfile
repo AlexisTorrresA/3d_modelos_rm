@@ -1,7 +1,7 @@
 FROM node:22-alpine AS web
 WORKDIR /web
-COPY frontend/package.json ./
-RUN npm install --no-audit --no-fund
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY frontend/index.html frontend/vite.config.js ./
 COPY frontend/src ./src
 # Public generic anatomy only, pinned and verified; no patient data is downloaded.
