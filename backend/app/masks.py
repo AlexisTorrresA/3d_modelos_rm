@@ -29,7 +29,7 @@ HEX=re.compile(r"^#[0-9a-fA-F]{6}$")
 
 def metadata(entry: dict):
     return {key:entry[key] for key in (
-        "id","series_id","label","category","color","created_at","voxels","preview_dimensions"
+        "id","series_id","label","category","color","created_at","voxels","preview_dimensions","preview_meta"
     )}
 
 
@@ -127,6 +127,11 @@ async def add_mask(
             "id":entry_id,"series_id":series_id,"category":category,
             "label":label.strip(),"color":color.lower(),
             "voxels":count, "preview_dimensions":list(preview.GetSize()),
+            "preview_meta":{key:meta[key] for key in (
+                "dimensions","spacing","origin","direction",
+                "full_dimensions","full_spacing","full_origin","full_direction",
+                "study_reference","frame_reference"
+            )},
             "created_at":datetime.now(timezone.utc).isoformat(),
         }
         compressed=zlib.compress(pixels.tobytes(order="C"),level=6)
