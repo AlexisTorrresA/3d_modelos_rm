@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import vtkGenericRenderWindow from '@kitware/vtk.js/Rendering/Misc/GenericRenderWindow';
 import vtkImageData from '@kitware/vtk.js/Common/DataModel/ImageData';
 import vtkDataArray from '@kitware/vtk.js/Common/Core/DataArray';
@@ -6,54 +6,146 @@ import vtkVolume from '@kitware/vtk.js/Rendering/Core/Volume';
 import vtkVolumeMapper from '@kitware/vtk.js/Rendering/Core/VolumeMapper';
 import vtkColorTransferFunction from '@kitware/vtk.js/Rendering/Core/ColorTransferFunction';
 import vtkPiecewiseFunction from '@kitware/vtk.js/Common/DataModel/PiecewiseFunction';
+import vtkSphereSource from '@kitware/vtk.js/Filters/Sources/SphereSource';
+import vtkMapper from '@kitware/vtk.js/Rendering/Core/Mapper';
+import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import '@kitware/vtk.js/Rendering/Profiles/Volume';
 
-export default function VolumeViewer({url,meta}){
-  const container=useRef(null);
-  const [status,setStatus]=useState('Preparando volumen 3D…');
-  useEffect(()=>{
-    let live=true,view=null,observer=null;
-    const abort=new AbortController();
-    async function start(){
-      try{
-        setStatus('Cargando volumen 3D…');
-        const res=await fetch(url,{signal:abort.signal,cache:'no-store'});
-        if(!res.ok)throw new Error('No se pudo descargar el volumen');
-        const buffer=await res.arrayBuffer();
-        if(!live)return;
-        const total=meta.dimensions.reduce((a,b)=>a*b,1);
-        if(buffer.byteLength!==total)throw new Error('Datos volumétricos incompletos');
-        const image=vtkImageData.newInstance();
-        image.setDimensions(meta.dimensions);
-        image.setSpacing(meta.spacing);
-        image.setOrigin(meta.origin);
-        image.setDirection(meta.direction);
-        image.getPointData().setScalars(vtkDataArray.newInstance({name:'MRI',numberOfComponents:1,values:new Uint8Array(buffer)}));
-        const mapper=vtkVolumeMapper.newInstance();
-        mapper.setInputData(image);
-        mapper.setSampleDistance(Math.min(...meta.spacing)*0.8);
-        const opacity=vtkPiecewiseFunction.newInstance();
-        [[0,0],[28,0],[65,.015],[120,.07],[190,.25],[255,.55]].forEach(p=>opacity.addPoint(...p));
-        const colors=vtkColorTransferFunction.newInstance();
-        [[0,.03,.05,.08],[60,.16,.31,.50],[140,.67,.80,.91],[255,.98,.98,1]].forEach(p=>colors.addRGBPoint(...p));
-        const volume=vtkVolume.newInstance();
-        volume.setMapper(mapper);
-        volume.getProperty().setRGBTransferFunction(0,colors);
-        volume.getProperty().setScalarOpacity(0,opacity);
-        volume.getProperty().setInterpolationTypeToLinear();
-        view=vtkGenericRenderWindow.newInstance({background:[.025,.05,.08]});
-        view.setContainer(container.current);
-        view.resize();
-        view.getRenderer().addVolume(volume);
-        view.getRenderer().resetCamera();
-        view.getRenderWindow().render();
-        observer=new ResizeObserver(()=>{if(live&&view)view.resize();});
-        observer.observe(container.current);
-        setStatus('');
-      }catch(e){if(live&&e.name!=='AbortError')setStatus(e.message||'El navegador no pudo renderizar el 3D');}
+function rgb(hex){
+ const h=(hex||'#e1e7ee').replace('#','');
+ return [0,2,4].map(i=>parseInt(h.substring(i,i+2),16)/255);
+}
+function tintColor(transfer,hex){
+ const [r,g,b]=rgb(hex);
+ [[0,0],[35,.12],[95,.33],[160,.70],[255,1]].forEach(([x,f])=>{
+  const shade=x===0?0:.055*(1-f);
+  transfer.addRGBPoint(x,Math.min(1,r*f+shade),Math.min(1,g*f+shade),Math.min(1,b*f+shade));
+ });
+}
+function tintOpacity(transfer,alpha,visible){
+ const k=visible?Math.max(0,Math.min(1,alpha)):0;
+ [[0,0],[24,0],[55,.012*k],[105,.055*k],[165,.19*k],[220,.36*k],[255,.56*k]]
+   .forEach(point=>transfer.addPoint(...point));
+}
+function setAppearance(model,layer){
+ const color=vtkColorTransferFunction.newInstance();
+ tintColor(color,layer.color);
+ const opacity=vtkPiecewiseFunction.newInstance();
+ tintOpacity(opacity,layer.opacity,layer.visible);
+ model.volume.getProperty().setRGBTransferFunction(0,color);
+ model.volume.getProperty().setScalarOpacity(0,opacity);
+ if(model.colors)model.colors.delete();
+ if(model.opacity)model.opacity.delete();
+ model.colors=color;
+ model.opacity=opacity;
+}
+
+export default function VolumeViewer({layers,markers=[]}){
+ const container=useRef(null);
+ const renderer=useRef(null);
+ const actors=useRef([]);
+ const volumes=useRef([]);
+ const liveLayers=useRef(layers);
+ const [status,setStatus]=useState('Preparando volumen 3D…');
+ const layerIds=layers.filter(l=>l.meta).map(l=>l.id+'|'+l.url+'|'+l.meta.bytes).join('~');
+
+ useEffect(()=>{liveLayers.current=layers;
+  for(const model of volumes.current){
+   const layer=layers.find(l=>l.id===model.id);
+   if(layer)setAppearance(model,layer);
+  }
+  renderer.current?.getRenderWindow().render();
+ },[layers]);
+
+ useEffect(()=>{
+  let live=true,view=null,observer=null;
+  const abort=new AbortController();
+  volumes.current=[];
+  async function start(){
+   try{
+    setStatus('Cargando los volúmenes en la misma escena 3D…');
+    const selected=liveLayers.current.filter(l=>l.meta);
+    if(!selected.length)return;
+    const data=await Promise.all(selected.map(async(layer)=>{
+     const res=await fetch(layer.url,{signal:abort.signal,cache:'no-store'});
+     if(!res.ok)throw new Error('No se pudo cargar una de las series');
+     const buffer=await res.arrayBuffer();
+     const voxels=layer.meta.dimensions.reduce((a,b)=>a*b,1);
+     if(buffer.byteLength!==voxels)throw new Error('Volumen incompleto');
+     return {layer,buffer};
+    }));
+    if(!live||!container.current)return;
+    view=vtkGenericRenderWindow.newInstance({background:[.025,.05,.08]});
+    view.setContainer(container.current);
+    view.resize();
+    for(const {layer,buffer} of data){
+      const image=vtkImageData.newInstance();
+      image.setDimensions(layer.meta.dimensions);
+      image.setSpacing(layer.meta.spacing);
+      image.setOrigin(layer.meta.origin);
+      image.setDirection(layer.meta.direction);
+      image.getPointData().setScalars(vtkDataArray.newInstance({
+       name:'MRI',numberOfComponents:1,values:new Uint8Array(buffer)
+      }));
+      const mapper=vtkVolumeMapper.newInstance();
+      mapper.setInputData(image);
+      mapper.setSampleDistance(Math.min(...layer.meta.spacing)*1.0);
+      const volume=vtkVolume.newInstance();
+      volume.setMapper(mapper);
+      volume.getProperty().setInterpolationTypeToLinear();
+      const model={id:layer.id,image,mapper,volume,colors:null,opacity:null};
+      setAppearance(model,liveLayers.current.find(l=>l.id===layer.id)||layer);
+      volumes.current.push(model);
+      view.getRenderer().addVolume(volume);
     }
-    start();
-    return()=>{live=false;abort.abort();if(observer)observer.disconnect();if(view){view.setContainer(null);view.delete();}};
-  },[url,meta]);
-  return <div className="volume"><div className="volume-container" ref={container}/>{status?<div className="volume-status">{status}</div>:<div className="volume-tip">Arrastra para rotar · Rueda para zoom</div>}</div>;
+    renderer.current=view;
+    view.getRenderer().resetCamera();
+    view.getRenderWindow().render();
+    observer=new ResizeObserver(()=>{if(live)view.resize();});
+    observer.observe(container.current);
+    setStatus('');
+   }catch(e){
+    if(live&&e.name!=='AbortError')setStatus(e.message||'El navegador no pudo renderizar el modelo');
+   }
+  }
+  start();
+  return ()=>{
+   live=false;abort.abort();if(observer)observer.disconnect();
+   if(view){view.setContainer(null);view.delete();}
+   renderer.current=null;
+   for(const v of volumes.current){
+    v.colors?.delete();v.opacity?.delete();
+    v.volume.delete();v.mapper.delete();v.image.delete();
+   }
+   volumes.current=[];
+  };
+ },[layerIds]);
+
+ useEffect(()=>{
+  const view=renderer.current;
+  if(!view)return;
+  const renderer3d=view.getRenderer();
+  for(const a of actors.current){renderer3d.removeActor(a.actor);a.actor.delete();a.mapper.delete();a.source.delete();}
+  actors.current=[];
+  for(const m of markers){
+   if(!Array.isArray(m.position_mm)||m.position_mm.length!==3)continue;
+   const source=vtkSphereSource.newInstance({radius:m.radius_mm||3,thetaResolution:20,phiResolution:14});
+   source.setCenter(...m.position_mm);
+   const mapper=vtkMapper.newInstance();
+   mapper.setInputConnection(source.getOutputPort());
+   const actor=vtkActor.newInstance();
+   actor.setMapper(mapper);
+   actor.getProperty().setColor(...rgb(m.color));
+   actor.getProperty().setOpacity(.94);
+   renderer3d.addActor(actor);
+   actors.current.push({source,mapper,actor});
+  }
+  view.getRenderWindow().render();
+  return()=>{};
+ },[markers,layerIds,status]);
+
+ return <div className="volume">
+  <div className="volume-container" ref={container}/>
+  {status?<div className="volume-status">{status}</div>:<div className="volume-tip">Arrastra para rotar · Rueda para acercar · Esferas = marcadores manuales</div>}
+ </div>;
 }
