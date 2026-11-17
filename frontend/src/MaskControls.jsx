@@ -84,7 +84,8 @@ export default function MaskControls({study,series,meta,masks,setMasks}){
     return <div className="mask-item" key={m.id}>
      <span className="marker-dot" style={{background:m.color}}/>
      <div className="mask-info"><strong>{m.label}</strong>
-       <small>{m.voxels.toLocaleString('es-CL')} vóxeles · {compatible?'Compatible con la serie visible':'Otra geometría / región: no superpuesta'}</small></div>
+       <small>{m.voxels.toLocaleString('es-CL')} vóxeles · {compatible?'Compatible con la serie visible':'Otra geometría / región: no superpuesta'}</small>
+       {m.source_type?.includes('experimental')&&<small className="mask-experimental">Predicción automática experimental · requiere revisión de la máscara</small>}</div>
      <input type="color" aria-label={'Color de '+m.label} value={m.color} onChange={e=>recolor(m,e.target.value)}/>
      <label className="opacity-control">Opacidad
       <input type="range" min="0" max="100" value={Math.round((m.opacity??.8)*100)}

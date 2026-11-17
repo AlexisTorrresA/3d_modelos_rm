@@ -187,3 +187,5 @@
 .patient-hint{font-size:11px;color:#a9c8dc;background:#152b3e;border-radius:8px;padding:11px}
 @media(max-width:1100px){.patient-atlas-area{grid-template-columns:220px minmax(0,1fr)}.patient-tabs span{width:100%;margin-left:0}}
 @media(max-width:760px){.patient-source-list{grid-template-columns:1fr}.patient-atlas-area{grid-template-columns:1fr}.patient-atlas-side{max-height:330px;border-right:0;border-bottom:1px solid #34556b}.patient-hero{flex-wrap:wrap}.patient-stage .volume{height:55vh;min-height:370px}}
+
+.mask-experimental{color:#ffca91!important;font-size:10px;line-height:1.5}

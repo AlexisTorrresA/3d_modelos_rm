@@ -28,9 +28,12 @@ HEX=re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def metadata(entry: dict):
-    return {key:entry[key] for key in (
+    out={key:entry[key] for key in (
         "id","series_id","label","category","color","created_at","voxels","preview_dimensions","preview_meta"
     )}
+    out["source_type"]=entry.get("source_type","user_uploaded")
+    out["review_status"]=entry.get("review_status","unverified")
+    return out
 
 
 def folder(study_id):
@@ -67,9 +70,12 @@ async def add_mask(
     category:str=Form(...),
     label:str=Form(...),
     color:str=Form(...),
+    source_type:str=Form("user_uploaded"),
 ):
     study=load_study(study_id)
     find_series(study,series_id)
+    if source_type not in ("user_uploaded","synthstrip_general_experimental","synthstrip_pediatric_experimental"):
+        raise HTTPException(400,"Origen de segmentación no reconocido")
     if category not in CATEGORIES or not HEX.fullmatch(color):
         raise HTTPException(400,"Categoría o color inválidos")
     if not (1<=len(label.strip())<=70):
@@ -137,6 +143,7 @@ async def add_mask(
         record={
             "id":entry_id,"series_id":series_id,"category":category,
             "label":label.strip(),"color":color.lower(),
+            "source_type":source_type,"review_status":"unverified",
             "voxels":count, "preview_dimensions":list(meta["dimensions"]),
             "preview_meta":{key:meta[key] for key in (
                 "dimensions","spacing","origin","direction",
