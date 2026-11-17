@@ -4,6 +4,13 @@ COPY frontend/package.json ./
 RUN npm install --no-audit --no-fund
 COPY frontend/index.html frontend/vite.config.js ./
 COPY frontend/src ./src
+# Public generic anatomy only, pinned and verified; no patient data is downloaded.
+RUN apk add --no-cache curl && mkdir -p public/atlas && \
+    cp -r node_modules/three/examples/jsm/libs/draco public/atlas/draco && \
+    curl --fail --location --retry 3 --silent --show-error \
+      https://cdn.jsdelivr.net/gh/itayinbarr/brainproject@2929e94f521a8ddceab26bc100a98dc06b0da060/brain-atlas/models/brain.glb \
+      -o public/atlas/brain.glb && \
+    echo '76a49ea4526a4880613aec7a02756bd7301b0b9d0680d7cae33e197b672c5453  public/atlas/brain.glb' | sha256sum -c -
 RUN npm run build
 
 FROM python:3.12-slim
