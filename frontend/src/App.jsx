@@ -258,7 +258,8 @@ export default function App(){
       analysis={reportAnalysis} onAnalysis={setReportAnalysis} onReportUpload={reportUpdated}/>}
     {mode==='patient'&&<PatientReconstruction study={selected} masks={masks}
       markers={renderedMarkers} analysis={reportAnalysis}/>}
-    {mode==='segmentation'&&<SegmentationStudio study={selected} masks={masks} setMasks={setMasks}/>}
+    {mode==='segmentation'&&<SegmentationStudio study={selected} masks={masks} setMasks={setMasks}
+      markers={markers} setMarkers={setMarkers} reportAnalysis={reportAnalysis}/>}
     {mode!=='patient'&&mode!=='segmentation'&&<div className="viewer-layout">
      <div className="panel series-panel"><h3><Layers size={18}/> Series disponibles</h3><p className="muted small">{mode==='integral'?'Elige la serie principal del modelo.':'Elige una secuencia para reconstruirla.'}</p>
       <div className="series-list">{selected.series.map(s=><button className={'series '+(series===s.id?'active':'')} key={s.id} onClick={()=>setSeries(s.id)}>

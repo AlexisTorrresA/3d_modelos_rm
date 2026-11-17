@@ -50,3 +50,20 @@ Las mallas de distintas series comparten coordenadas físicas del estudio cuando
 - POST /api/studies/{study_id}/segmentation/masks/{mask_id}/restore
 
 Dependencias: FastAPI, PostgreSQL existente, SimpleITK, NumPy, Pillow, SciPy, scikit-image y Trimesh. Todas las operaciones se ejecutan localmente en el Y700.
+
+
+## Ubicar puntos de tumores, focos y diseminación en el modelo 3D
+
+Nueva sección: «Ubicar hallazgos en el modelo 3D».
+
+1. Abre el estudio en «Segmentación precisa desde cortes». Selecciona una secuencia DICOM donde la estructura pueda revisarse.
+2. Desplaza el cursor en cualquiera de los tres ejes sincronizados hasta un punto elegido manualmente.
+3. Si quieres, enlaza una mención del informe; se muestra la página y el texto. No se ofrecen menciones negadas o descartadas. El OCR puede equivocarse.
+4. Selecciona «Tumores / lesiones», «Meninges / diseminación» u otra categoría y escribe la etiqueta.
+5. Pulsa «Mostrar este punto en 3D». Se almacena su ubicación física LPS, transformada desde el vóxel y validada dentro de la serie original.
+6. «Localizar» vuelve a centrar el modelo 3D y los tres cortes sobre el punto. «Eliminar» quita la referencia sin afectar DICOM ni máscaras.
+7. También se reutilizan estas anotaciones en el modo «Modelo completo · RM real».
+
+**Advertencia:** un punto es una referencia elegida manualmente y no identifica ni demuestra un tumor o su tamaño, volumen o extensión. La forma real requiere delineación de una máscara y revisión especializada.
+
+La API de marcadores permite un vínculo opcional con un hallazgo del informe solamente cuando la ubicación fue marcada manualmente en un corte. PostgreSQL guarda el origen manual, el estado sin verificar y el vínculo al fragmento textual; los datos permanecen privados en el Y700.

@@ -1,9 +1,10 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Brush, Eraser, Pentagon, MousePointer2, WandSparkles, Layers3,
   Save, Download, Undo2, Copy, Plus, CircleHelp, RefreshCw, Activity} from 'lucide-react';
-import {CATEGORY_OPTIONS,isDiffusion} from './geometry.js';
+import {CATEGORY_OPTIONS,isDiffusion,toVoxel} from './geometry.js';
 import SegmentedMeshViewer from './SegmentedMeshViewer.jsx';
 import MaskControls from './MaskControls.jsx';
+import SpatialFindingGuide from './SpatialFindingGuide.jsx';
 import './segmentation.css';
 
 const root = (sid)=>'/api/studies/'+encodeURIComponent(sid);
@@ -43,7 +44,7 @@ function masksForSeries(masks,series){
 }
 
 function Viewport({study,series,plane,meta,position,onPosition,mask,tool,
-  radius,polygon,onPolygon,onCommit,onGrow,refresh,overlayOpacity}){
+  radius,polygon,onPolygon,onCommit,onGrow,refresh,overlayOpacity,markers=[]}){
  const canvas=useRef(null);
  const shape=useMemo(()=>cutGeometry(plane,meta,position),[plane,meta,position]);
  const stroke=useRef(null);
@@ -53,6 +54,14 @@ function Viewport({study,series,plane,meta,position,onPosition,mask,tool,
  const maskURL=mask?maskRoot(study.id,mask.id)+'/slice?plane='+plane+
   '&index='+shape.index+'&rev='+(mask.revision||1)+'&v='+refresh:null;
  const polygonPoints=polygon?.plane===plane&&polygon.index===shape.index?polygon.points:[];
+ const alignedMarkers=markers.filter(marker=>marker.series_id===series).flatMap(marker=>{
+  const vox=toVoxel(marker.position_mm,meta);
+  const axis=plane==='axial'?2:plane==='coronal'?1:0;
+  if(Math.abs(vox[axis]-shape.index)>.65)return [];
+  const x=plane==='sagital'?vox[1]:vox[0];
+  const y=plane==='axial'?vox[1]:vox[2];
+  return [{...marker,x:100*x/Math.max(1,shape.width-1),y:100*y/Math.max(1,shape.height-1)}];
+ });
 
  function locate(event){
   const rect=canvas.current.getBoundingClientRect();
@@ -126,6 +135,9 @@ function Viewport({study,series,plane,meta,position,onPosition,mask,tool,
       draggable={false} alt="Segmentación coloreada" style={{opacity:overlayOpacity}}/>}
     <div className="seg-cross seg-cross-h" style={{top:100*shape.coords[1]/Math.max(1,shape.height-1)+'%'}}/>
     <div className="seg-cross seg-cross-v" style={{left:100*shape.coords[0]/Math.max(1,shape.width-1)+'%'}}/>
+    {alignedMarkers.map(point=><span key={point.id} className="seg-cut-point"
+      title={'Referencia manual: '+point.label}
+      style={{left:point.x+'%',top:point.y+'%',borderColor:point.color}}/>)}
     <canvas ref={canvas} width={shape.width} height={shape.height}
       className={'seg-interaction '+(drawing?'drawing':'')}
       onPointerDown={down} onPointerMove={move} onPointerUp={up}
@@ -147,9 +159,12 @@ function Viewport({study,series,plane,meta,position,onPosition,mask,tool,
  </div>;
 }
 
-export default function SegmentationStudio({study,masks,setMasks}){
+export default function SegmentationStudio({study,masks,setMasks,markers=[],setMarkers,reportAnalysis}){
  const [series,setSeries]=useState('');
  const [meta,setMeta]=useState(null);
+ const [plan,setPlan]=useState(null);
+ const [selectedMarkerId,setSelectedMarkerId]=useState(null);
+ const pendingFocus=useRef(null);
  const [working,setWorking]=useState('');
  const [error,setError]=useState('');
  const [info,setInfo]=useState('');
@@ -178,9 +193,10 @@ export default function SegmentationStudio({study,masks,setMasks}){
  const sameId=root(study.id);
 
  useEffect(()=>{
-  let alive=true;setMeta(null);setError('');setSeries('');setMaskId('');
+  let alive=true;setMeta(null);setPlan(null);setSelectedMarkerId(null);setError('');setSeries('');setMaskId('');
   json(root(study.id)+'/reconstruction/plan').then(plan=>{
    if(!alive)return;
+   setPlan(plan);
    setSeries(plan.brain_base_id||validSeries[0]?.id||'');
   }).catch(err=>{if(alive){setError(err.message);setSeries(validSeries[0]?.id||'');}});
   return()=>{alive=false;};
@@ -192,7 +208,14 @@ export default function SegmentationStudio({study,masks,setMasks}){
   json(root(study.id)+'/series/'+series+'/volume.json').then(result=>{
    if(!live)return;
    setMeta(result);
-   setPosition(result.full_dimensions.map(n=>Math.floor((n-1)/2)));
+   const target=pendingFocus.current;
+   if(target){
+    const voxel=toVoxel(target,result);
+    setPosition(voxel.map((value,i)=>Math.max(0,Math.min(result.full_dimensions[i]-1,Math.round(value)))));
+    pendingFocus.current=null;
+   }else{
+    setPosition(result.full_dimensions.map(n=>Math.floor((n-1)/2)));
+   }
    setInterpStart(0);setInterpEnd(Math.min(result.full_dimensions[2]-1,10));
   }).catch(err=>{if(live)setError(err.message)})
    .finally(()=>{if(live)setWorking('');});
@@ -298,8 +321,25 @@ export default function SegmentationStudio({study,masks,setMasks}){
   }catch(err){setError(err.message)}
   finally{setWorking('');}
  }
+ function locateMarker(marker){
+  if(!marker){setSelectedMarkerId(null);return;}
+  setSelectedMarkerId(marker.id);
+  if(marker.series_id!==series){
+   pendingFocus.current=marker.position_mm;
+   setSeries(marker.series_id);
+   return;
+  }
+  if(!meta)return;
+  setPosition(toVoxel(marker.position_mm,meta).map((value,i)=>
+   Math.max(0,Math.min(meta.full_dimensions[i]-1,Math.round(value)))));
+ }
  const compatible=selected&&selected.series_id===series;
  const maxIndices=meta?meta.full_dimensions:[1,1,1];
+ const eligibleMarkers=meta?markers.filter(m=>{
+  if(m.series_id===series)return true;
+  const info=plan?.series?.find(s=>s.id===m.series_id);
+  return Boolean(info?.frame_reference&&meta.frame_reference&&info.frame_reference===meta.frame_reference);
+ }):[];
  const mergedMasks=meta?masks.filter(m=>m.voxels>0&&(
     m.series_id===series ||
     !!(m.preview_meta?.frame_reference && meta.frame_reference &&
@@ -403,7 +443,8 @@ export default function SegmentationStudio({study,masks,setMasks}){
       position={position} onPosition={setPosition}
       mask={compatible?selected:null} tool={busy?'inspect':tool} radius={radius}
       polygon={polygon} onPolygon={setPolygon} onCommit={editStroke}
-      onGrow={regionGrow} refresh={refresh} overlayOpacity={overlayOpacity}/>)}
+      onGrow={regionGrow} refresh={refresh} overlayOpacity={overlayOpacity}
+      markers={markers}/>)}
    </section>
    <div className="seg-coordinates"><Activity size={15}/>
     Cursor sincronizado: X {position[0]+1} / {maxIndices[0]},
@@ -411,6 +452,10 @@ export default function SegmentationStudio({study,masks,setMasks}){
     Z {position[2]+1} / {maxIndices[2]} ·
     espaciado {meta.full_spacing.map(x=>x.toFixed(2)).join(' × ')} mm
    </div>
+   <SpatialFindingGuide study={study} series={series} meta={meta}
+    position={position} markers={markers} setMarkers={setMarkers}
+    analysis={reportAnalysis} selectedMarkerId={selectedMarkerId}
+    onSelectMarker={locateMarker}/>
    <section className="seg-secondary-tools">
     <form onSubmit={interpolate}>
      <h4>2. Interpolar entre cortes delimitados</h4>
@@ -445,14 +490,15 @@ export default function SegmentationStudio({study,masks,setMasks}){
    <section className="seg-mesh-section">
     <div className="seg-mesh-head"><div><h4><Layers3 size={17}/> 4. Reconstrucción 3D de tus máscaras reales</h4>
       <p>Mallas de cerebro, lesiones y región espinal, incluso si fueron pintadas en diferentes series del mismo marco DICOM. No se supone que estén registradas sin verificación.</p>
-     </div><span>{mergedMasks.length} superficie(s)</span></div>
+     </div><span>{mergedMasks.length} superficie(s) · {eligibleMarkers.length} punto(s) manual(es)</span></div>
     <div className="seg-mesh-legend">{mergedMasks.slice(0,8).map(m=>
      <button type="button" key={m.id} className={m.visible===false?'off':''}
       onClick={()=>setMasks(current=>current.map(x=>x.id===m.id?{...x,visible:!x.visible}:x))}
       title="Activar u ocultar una superficie en el 3D">
       <span style={{background:m.color}}/>{m.label}
      </button>)}</div>
-    <SegmentedMeshViewer study={study} masks={mergedMasks} refresh={refresh}/>
+    <SegmentedMeshViewer study={study} masks={mergedMasks} refresh={refresh}
+     markers={eligibleMarkers} selectedMarkerId={selectedMarkerId}/>
     <div className="seg-exports">
      <strong>Exportar {selected?.label||'estructura seleccionada'}</strong>
      {['glb','obj','stl','nii.gz'].map(format=><button key={format}

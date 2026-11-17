@@ -72,6 +72,12 @@ def initialize():
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS rm_annotations_study_idx ON rm_annotations(study_id)")
+        # Backward-compatible columns: only manually selected points can claim
+        # an actual patient-space location. A report citation is never a mask.
+        conn.execute("ALTER TABLE rm_annotations ADD COLUMN IF NOT EXISTS finding_id UUID")
+        conn.execute("ALTER TABLE rm_annotations ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'manual_reference'")
+        conn.execute("ALTER TABLE rm_annotations ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'unverified'")
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS rm_masks (
                 id UUID PRIMARY KEY,
