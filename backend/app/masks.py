@@ -137,7 +137,7 @@ async def add_mask(
         record={
             "id":entry_id,"series_id":series_id,"category":category,
             "label":label.strip(),"color":color.lower(),
-            "voxels":count, "preview_dimensions":list(preview.GetSize()),
+            "voxels":count, "preview_dimensions":list(meta["dimensions"]),
             "preview_meta":{key:meta[key] for key in (
                 "dimensions","spacing","origin","direction",
                 "full_dimensions","full_spacing","full_origin","full_direction",
