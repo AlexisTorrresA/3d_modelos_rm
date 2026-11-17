@@ -40,7 +40,7 @@ export function chooseAnatomical(series){
       let x=isAnatomical(n)?100:0;
       if(/3D|SPACE|MPRAGE|BRAVO|SPGR/i.test(n))x+=90;
       if(/T1|T2|FLAIR/i.test(n))x+=45;
-      if(/SWI/i.test(n))x-=30;
+      if(/SWI/i.test(n))x+=(s.count>180?75:-30);
       return x+Math.min(s.count,200)*0.2;
     }
     return score(b)-score(a);

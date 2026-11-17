@@ -35,7 +35,13 @@ export default function IntegratedStudio({study,series,meta,markers}){
   setLoading(true);
   readMeta(urls(study.id,overlayId,'volume.json')).then(data=>{
    if(!active)return;
-   if(meta && overlap(meta,data)<0.1){
+   if(meta?.study_reference && data.study_reference && meta.study_reference!==data.study_reference){
+     setError('Estas series pertenecen a estudios DICOM diferentes. No se pueden superponer sin registro externo.');
+     setOverlayMeta(null);
+   }else if(meta?.frame_reference && data.frame_reference && meta.frame_reference!==data.frame_reference){
+     setError('Las series tienen FrameOfReferenceUID distintos: sus coordenadas espaciales no se pueden combinar directamente.');
+     setOverlayMeta(null);
+   }else if(meta && overlap(meta,data)<0.1){
      setError('Las series no comparten suficiente espacio físico DICOM para superponerlas. Puede tratarse de otra región anatómica.');
      setOverlayMeta(null);
    }else setOverlayMeta(data);
@@ -84,7 +90,7 @@ export default function IntegratedStudio({study,series,meta,markers}){
   {meta?<VolumeViewer layers={layers} markers={markers}/>:<div className="placeholder">{loading?<LoaderCircle className="spin"/>:'Preparando serie anatómica…'}</div>}
   <div className="technical">
    <span>Marcadores manuales visibles: {markers.length}</span>
-   <span>Geometría compartida: {overlayMeta?'Verificada de forma aproximada':'Una serie'}</span>
+   <span>Geometría compartida: {overlayMeta?(meta.frame_reference && overlayMeta.frame_reference?'Mismo marco DICOM':'Sin marco de referencia confirmado'):'Una serie'}</span>
    <span>Las zonas con color no están identificadas automáticamente</span>
   </div>
  </section>;

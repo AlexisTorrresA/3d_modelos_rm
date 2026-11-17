@@ -1,6 +1,8 @@
 """Derivative previews are not diagnostic. Source DICOM is retained intact."""
 import io
 import json
+import hashlib
+import pydicom
 import math
 from pathlib import Path
 
@@ -25,11 +27,21 @@ def ensure_volume(study_dir: Path, study: dict, series_id: str) -> dict:
     meta_path = target / "volume.json"
     if meta_path.exists() and (target / "volume.raw").exists() and (target / "full.npy").exists():
         cached = json.loads(meta_path.read_text(encoding="utf-8"))
-        if "full_origin" in cached and "full_direction" in cached:
+        if ("full_origin" in cached and "full_direction" in cached and
+                "study_reference" in cached and "frame_reference" in cached):
             return cached
 
     try:
         image = read_series(study_dir / "dicom", series)
+        # The DICOM coordinate system is only shared across images in the same
+        # Frame of Reference. Expose a non-identifying comparison digest.
+        first = pydicom.dcmread(
+            str(study_dir / "dicom" / series["filenames"][0]),
+            stop_before_pixels=True,
+            specific_tags=["FrameOfReferenceUID"],
+        )
+        frame_uid = str(first.get("FrameOfReferenceUID", "")).strip()
+        study_uid = str(series.get("study_uid", "")).strip()
         size = image.GetSize()
         if math.prod(size) > MAX_VOXELS:
             raise ValueError("Serie demasiado grande para esta versión")
@@ -63,6 +75,8 @@ def ensure_volume(study_dir: Path, study: dict, series_id: str) -> dict:
             "full_spacing": list(image.GetSpacing()),
             "full_origin": list(image.GetOrigin()),
             "full_direction": list(image.GetDirection()),
+            "study_reference": hashlib.sha256(study_uid.encode()).hexdigest()[:20] if study_uid else None,
+            "frame_reference": hashlib.sha256(frame_uid.encode()).hexdigest()[:20] if frame_uid else None,
             "intensity_window": [float(low), float(high)],
             "preview_downsample_factors": factors,
             "bytes": pixels.nbytes,

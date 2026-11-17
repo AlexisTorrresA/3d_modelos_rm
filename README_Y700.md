@@ -51,3 +51,13 @@ Ver estado desde el Y700:
     docker logs --tail=100 y700-rm3d
 
 No subir CD, PDF o datos privados al repositorio. Este proyecto es exploratorio, no diagnóstico.
+
+## Modelo integral y marcadores
+
+- **Por secuencia:** el volumen de una adquisición concreta, con color de visualización y opacidad.
+- **Modelo integral:** una secuencia como base más una secuencia complementaria, mostradas en una misma escena VTK usando la geometría DICOM. No se concatenan los píxeles, no se fusionan todos los contrastes en un mapa diagnóstico y no se presupone que todas las series sean anatómicas.
+- Verificación de StudyInstanceUID, FrameOfReferenceUID cuando está disponible, y solapamiento aproximado en coordenadas físicas. Aun así, los movimientos del paciente y los cambios de postura pueden exigir registro rígido o deformable antes de validar concordancia.
+- **Marcadores manuales:** se crean pulsando en los cortes axial/coronal/sagital y se guardan en PostgreSQL. Se muestran como esferas de radio orientativo en milímetros, **no como segmentaciones ni volúmenes reales de tumores**. Su categoría, texto y color los elige el usuario.
+- Series de difusión, FA y ADC pueden contener adquisiciones repetidas sobre la misma posición. El lector evita apilar esas posiciones como si fueran nuevos cortes de un volumen 3D.
+- Para segmentación anatómica real y contornos de lesión se requerirá una etapa posterior de máscaras (p. ej. nnU-Net/MONAI o edición manual por vóxeles) con revisión del especialista. No interpretar la asignación de colores como prueba de un diagnóstico.
+
